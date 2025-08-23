@@ -154,10 +154,42 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final weekdayOffset = firstDayOfMonth.weekday % 7;
     List<Widget> dayWidgets = [];
 
+    // Previous month's days to fill the grid
+    final prevMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1);
+    final prevMonthDays = DateTime(prevMonth.year, prevMonth.month + 1, 0).day;
     for (int i = 0; i < weekdayOffset; i++) {
-      dayWidgets.add(const SizedBox());
+      final day = prevMonthDays - weekdayOffset + i + 1;
+      dayWidgets.add(
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final boxSize = constraints.maxWidth;
+            return Container(
+              width: boxSize,
+              height: boxSize,
+              decoration: BoxDecoration(
+                color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.15), // less opacity
+                border: Border.all(
+                  color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.3), // less opacity
+                  width: 0.25,
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  day.toString(),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: boxSize * 0.4,
+                    color: Theme.of(context).disabledColor.withOpacity(0.4), // less opacity
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      );
     }
 
+    // Current month's days
     for (int day = 1; day <= daysInMonth; day++) {
       final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
       final isSelected = _selectedDate != null &&
@@ -165,6 +197,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
           _selectedDate!.month == date.month &&
           _selectedDate!.day == date.day;
       final hasEvent = _events.containsKey(DateTime(date.year, date.month, date.day));
+
+      // Color for Friday and Saturday
+      Color? numberColor;
+      if (date.weekday == DateTime.friday) {
+        numberColor = Colors.red;
+      } else if (date.weekday == DateTime.saturday) {
+        numberColor = Colors.blue;
+      } else if (isSelected) {
+        numberColor = Colors.blue;
+      }
+
       dayWidgets.add(
         LayoutBuilder(
           builder: (context, constraints) {
@@ -184,11 +227,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 decoration: BoxDecoration(
                   color: isSelected ? Colors.blue.withOpacity(0.2) : null,
                   border: Border.all(
-                    color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.7), // Border color close to background
-                    width: 0.25, // Even thinner border
+                    color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.7),
+                    width: 0.25,
                   ),
                 ),
-                // Removed margin
                 child: Stack(
                   children: [
                     Center(
@@ -197,7 +239,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: boxSize * 0.4,
-                          color: isSelected ? Colors.blue : null,
+                          color: numberColor,
                         ),
                       ),
                     ),
@@ -209,12 +251,47 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
                   ],
                 ),
+              ));
+            }
+          
+        ),
+      );
+    }
+
+    // Next month's days to fill the grid
+    int totalBoxes = dayWidgets.length;
+    int nextDays = (totalBoxes % 7 == 0) ? 0 : (7 - totalBoxes % 7);
+    for (int i = 1; i <= nextDays; i++) {
+      dayWidgets.add(
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final boxSize = constraints.maxWidth;
+            return Container(
+              width: boxSize,
+              height: boxSize,
+              decoration: BoxDecoration(
+                color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.15), // less opacity
+                border: Border.all(
+                  color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.3), // less opacity
+                  width: 0.25,
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  i.toString(),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: boxSize * 0.4,
+                    color: Theme.of(context).disabledColor.withOpacity(0.4), // less opacity
+                  ),
+                ),
               ),
             );
           },
         ),
       );
     }
+
     return GridView.count(
       crossAxisCount: 7,
       shrinkWrap: true,
