@@ -70,16 +70,48 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   void _addEvent(DateTime date) async {
-    String? eventText = await showDialog<String>(
+    String title = '';
+    String duration = '';
+    String location = '';
+    String notes = '';
+    String contacts = '';
+    // For attachment, just a text field for demo (file picker needs more setup)
+    String attachment = '';
+
+    final result = await showDialog<Map<String, String>>(
       context: context,
       builder: (context) {
-        String input = '';
         return AlertDialog(
           title: const Text('Add Event'),
-          content: TextField(
-            autofocus: true,
-            decoration: const InputDecoration(hintText: 'Event details'),
-            onChanged: (value) => input = value,
+          content: SingleChildScrollView(
+            child: Column(
+              children: [
+                TextField(
+                  decoration: const InputDecoration(labelText: 'Title'),
+                  onChanged: (value) => title = value,
+                ),
+                TextField(
+                  decoration: const InputDecoration(labelText: 'Duration'),
+                  onChanged: (value) => duration = value,
+                ),
+                TextField(
+                  decoration: const InputDecoration(labelText: 'Location'),
+                  onChanged: (value) => location = value,
+                ),
+                TextField(
+                  decoration: const InputDecoration(labelText: 'Notes'),
+                  onChanged: (value) => notes = value,
+                ),
+                TextField(
+                  decoration: const InputDecoration(labelText: 'Attachment (URL or name)'),
+                  onChanged: (value) => attachment = value,
+                ),
+                TextField(
+                  decoration: const InputDecoration(labelText: 'Contacts'),
+                  onChanged: (value) => contacts = value,
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -87,17 +119,29 @@ class _CalendarScreenState extends State<CalendarScreen> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.pop(context, input),
+              onPressed: () {
+                Navigator.pop(context, {
+                  'title': title,
+                  'duration': duration,
+                  'location': location,
+                  'notes': notes,
+                  'attachment': attachment,
+                  'contacts': contacts,
+                });
+              },
               child: const Text('Add'),
             ),
           ],
         );
       },
     );
-    if (eventText != null && eventText.trim().isNotEmpty) {
+
+    if (result != null && result['title']!.trim().isNotEmpty) {
       setState(() {
         final key = DateTime(date.year, date.month, date.day);
-        _events.putIfAbsent(key, () => []).add(eventText.trim());
+        final eventDetails =
+            "Title: ${result['title']}\nDuration: ${result['duration']}\nLocation: ${result['location']}\nNotes: ${result['notes']}\nAttachment: ${result['attachment']}\nContacts: ${result['contacts']}";
+        _events.putIfAbsent(key, () => []).add(eventDetails);
         _selectedDate = key;
       });
     }
