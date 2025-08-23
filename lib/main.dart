@@ -53,6 +53,7 @@ class CalendarScreen extends StatefulWidget {
 class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _focusedMonth = DateTime(DateTime.now().year, DateTime.now().month);
   DateTime? _selectedDate;
+  final Map<DateTime, List<String>> _events = {};
 
   void _goToPreviousMonth() {
     setState(() {
@@ -68,55 +69,38 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
-  List<Widget> _buildDaysGrid() {
-    final firstDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
-    final daysInMonth =
-        DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0).day;
-    final weekdayOffset = firstDayOfMonth.weekday % 7;
-    List<Widget> dayWidgets = [];
-
-    for (int i = 0; i < weekdayOffset; i++) {
-      dayWidgets.add(const SizedBox());
-    }
-
-    for (int day = 1; day <= daysInMonth; day++) {
-      final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
-      final isSelected = _selectedDate != null &&
-          _selectedDate!.year == date.year &&
-          _selectedDate!.month == date.month &&
-          _selectedDate!.day == date.day;
-      dayWidgets.add(
-        GestureDetector(
-          onTap: () {
-            setState(() {
-              _selectedDate = date;
-            });
-          },
-          child: Container(
-            decoration: BoxDecoration(
-              color: isSelected ? Colors.blue.withOpacity(0.2) : null,
-              border: Border.all(
-                color: isSelected ? Colors.blue : Colors.grey.shade300,
-              ),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            margin: const EdgeInsets.all(4), // Increased margin for bigger boxes
-            padding: const EdgeInsets.all(16), // Increased padding for bigger boxes
-            child: Center(
-              child: Text(
-                day.toString(),
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 24, // Larger font size
-                  color: isSelected ? Colors.blue : null,
-                ),
-              ),
-            ),
+  void _addEvent(DateTime date) async {
+    String? eventText = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        String input = '';
+        return AlertDialog(
+          title: const Text('Add Event'),
+          content: TextField(
+            autofocus: true,
+            decoration: const InputDecoration(hintText: 'Event details'),
+            onChanged: (value) => input = value,
           ),
-        ),
-      );
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, input),
+              child: const Text('Add'),
+            ),
+          ],
+        );
+      },
+    );
+    if (eventText != null && eventText.trim().isNotEmpty) {
+      setState(() {
+        final key = DateTime(date.year, date.month, date.day);
+        _events.putIfAbsent(key, () => []).add(eventText.trim());
+        _selectedDate = key;
+      });
     }
-    return dayWidgets;
   }
 
   Widget _buildResponsiveDaysGrid(BuildContext context) {
@@ -136,6 +120,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           _selectedDate!.year == date.year &&
           _selectedDate!.month == date.month &&
           _selectedDate!.day == date.day;
+      final hasEvent = _events.containsKey(DateTime(date.year, date.month, date.day));
       dayWidgets.add(
         LayoutBuilder(
           builder: (context, constraints) {
@@ -146,26 +131,39 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   _selectedDate = date;
                 });
               },
+              onDoubleTap: () {
+                _addEvent(date);
+              },
               child: Container(
                 width: boxSize,
                 height: boxSize,
                 decoration: BoxDecoration(
                   color: isSelected ? Colors.blue.withOpacity(0.2) : null,
                   border: Border.all(
-                    color: isSelected ? Colors.blue : Colors.grey.shade300,
+                    color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.7), // Border color close to background
+                    width: 0.25, // Even thinner border
                   ),
-                  borderRadius: BorderRadius.circular(8),
                 ),
-                margin: const EdgeInsets.all(2),
-                child: Center(
-                  child: Text(
-                    day.toString(),
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: boxSize * 0.4, // Responsive font size
-                      color: isSelected ? Colors.blue : null,
+                // Removed margin
+                child: Stack(
+                  children: [
+                    Center(
+                      child: Text(
+                        day.toString(),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: boxSize * 0.4,
+                          color: isSelected ? Colors.blue : null,
+                        ),
+                      ),
                     ),
-                  ),
+                    if (hasEvent)
+                      Positioned(
+                        right: 4,
+                        bottom: 4,
+                        child: Icon(Icons.event, size: boxSize * 0.18, color: Colors.redAccent),
+                      ),
+                  ],
                 ),
               ),
             );
@@ -183,8 +181,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Weekday names
     final weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    final selectedEvents = _selectedDate != null
+        ? _events[DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day)] ?? []
+        : [];
 
     return Scaffold(
       appBar: AppBar(
@@ -222,7 +222,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          // Weekday names row
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
@@ -255,9 +254,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
           if (_selectedDate != null)
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: Text(
-                "Selected date: ${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}",
-                style: Theme.of(context).textTheme.titleMedium,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Selected date: ${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}",
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  ...selectedEvents.map((event) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2.0),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.event, size: 18, color: Colors.redAccent),
+                            const SizedBox(width: 4),
+                            Expanded(child: Text(event)),
+                          ],
+                        ),
+                      )),
+                ],
               ),
             ),
         ],
