@@ -25,7 +25,18 @@ class _CalendarAppState extends State<CalendarApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Scrollable Calendar',
-      theme: ThemeData.light(),
+      theme: ThemeData(
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: const Color(0xFFF2FFF5), // even lighter green
+        colorScheme: ColorScheme.fromSwatch().copyWith(
+          primary: const Color.fromARGB(255, 221, 249, 222),
+          secondary: Colors.lightGreen.shade100,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFFE0FFE5), // lighter green for app bar
+          foregroundColor: Colors.black,
+        ),
+      ),
       darkTheme: ThemeData.dark(),
       themeMode: _themeMode,
       home: CalendarScreen(
