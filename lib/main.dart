@@ -27,13 +27,13 @@ class _CalendarAppState extends State<CalendarApp> {
       title: 'Scrollable Calendar',
       theme: ThemeData(
         brightness: Brightness.light,
-        scaffoldBackgroundColor: const Color(0xFFF2FFF5), // even lighter green
+        scaffoldBackgroundColor: const Color.fromARGB(255, 255, 255, 255), // even lighter green
         colorScheme: ColorScheme.fromSwatch().copyWith(
-          primary: const Color.fromARGB(255, 221, 249, 222),
-          secondary: Colors.lightGreen.shade100,
+          primary:  const Color(0xFFF2FFF5),
+          secondary: const Color.fromARGB(255, 255, 255, 255),
         ),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFFE0FFE5), // lighter green for app bar
+          backgroundColor:  Color.fromARGB(255, 251, 251, 251), // lighter green for app bar
           foregroundColor: Colors.black,
         ),
       ),
@@ -320,7 +320,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Scrollable Calendar'),
+        title: const Text(''),
         actions: [
           IconButton(
             icon: Icon(
@@ -397,7 +397,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 2.0),
                         child: Row(
                           children: [
-                            const Icon(Icons.event, size: 18, color: Colors.redAccent),
+                            const Icon(Icons.event, size: 18, color: Color.fromARGB(255, 255, 255, 255)),
                             const SizedBox(width: 4),
                             Expanded(child: Text(event)),
                           ],
