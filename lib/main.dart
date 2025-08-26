@@ -65,18 +65,70 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _focusedMonth = DateTime(DateTime.now().year, DateTime.now().month);
   DateTime? _selectedDate;
   final Map<DateTime, List<String>> _events = {};
+  final DateTime _today = DateTime(
+    DateTime.now().year,
+    DateTime.now().month,
+    DateTime.now().day,
+  );
+
+  bool _isWeekView = false;
+  DateTime _focusedWeekStart = DateTime(
+    DateTime.now().year,
+    DateTime.now().month,
+    DateTime.now().day - (DateTime.now().weekday % 7),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (_focusedMonth.year == _today.year && _focusedMonth.month == _today.month) {
+      _selectedDate = _today;
+    }
+    _focusedWeekStart = _today.subtract(Duration(days: _today.weekday % 7));
+  }
 
   void _goToPreviousMonth() {
     setState(() {
       _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1);
-      _selectedDate = null;
+      if (_focusedMonth.year == _today.year && _focusedMonth.month == _today.month) {
+        _selectedDate = _today;
+      } else {
+        _selectedDate = null;
+      }
     });
   }
 
   void _goToNextMonth() {
     setState(() {
       _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1);
-      _selectedDate = null;
+      if (_focusedMonth.year == _today.year && _focusedMonth.month == _today.month) {
+        _selectedDate = _today;
+      } else {
+        _selectedDate = null;
+      }
+    });
+  }
+
+  void _goToPreviousWeek() {
+    setState(() {
+      _focusedWeekStart = _focusedWeekStart.subtract(const Duration(days: 7));
+    });
+  }
+
+  void _goToNextWeek() {
+    setState(() {
+      _focusedWeekStart = _focusedWeekStart.add(const Duration(days: 7));
+    });
+  }
+
+  void _toggleView() {
+    setState(() {
+      _isWeekView = !_isWeekView;
+      if (_isWeekView) {
+        _focusedWeekStart = _selectedDate != null
+            ? _selectedDate!.subtract(Duration(days: _selectedDate!.weekday % 7))
+            : _today.subtract(Duration(days: _today.weekday % 7));
+      }
     });
   }
 
@@ -86,7 +138,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     String location = '';
     String notes = '';
     String contacts = '';
-    // For attachment, just a text field for demo (file picker needs more setup)
     String attachment = '';
 
     final result = await showDialog<Map<String, String>>(
@@ -178,10 +229,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
               width: boxSize,
               height: boxSize,
               decoration: BoxDecoration(
-                color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.15), // less opacity
-                border: Border.all(
-                  color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.3), // less opacity
-                  width: 0.25,
+                color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.15),
+                border: Border(
+                  top: BorderSide(
+                    color: Colors.grey.withOpacity(0.2),
+                    width: 0.5,
+                  ),
+                  right: BorderSide(
+                    color: Colors.grey.withOpacity(0.2),
+                    width: 0.5,
+                  ),
                 ),
               ),
               child: Center(
@@ -190,7 +247,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: boxSize * 0.4,
-                    color: Theme.of(context).disabledColor.withOpacity(0.4), // less opacity
+                    color: Theme.of(context).disabledColor.withOpacity(0.4),
                   ),
                 ),
               ),
@@ -209,16 +266,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
           _selectedDate!.day == date.day;
       final hasEvent = _events.containsKey(DateTime(date.year, date.month, date.day));
 
-      // Color for Friday and Saturday
       Color? numberColor;
-      if (date.weekday == DateTime.friday) {
-        numberColor = Colors.red;
-      } else if (date.weekday == DateTime.saturday) {
+      if (date.year == _today.year &&
+          date.month == _today.month &&
+          date.day == _today.day) {
         numberColor = Colors.blue;
       } else if (isSelected) {
         numberColor = Colors.blue;
       }
-//ki
+
       dayWidgets.add(
         LayoutBuilder(
           builder: (context, constraints) {
@@ -237,9 +293,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 height: boxSize,
                 decoration: BoxDecoration(
                   color: isSelected ? Colors.blue.withOpacity(0.2) : null,
-                  border: Border.all(
-                    color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.7),
-                    width: 0.25,
+                  border: Border(
+                    top: BorderSide(
+                      color: Colors.grey.withOpacity(0.2),
+                      width: 0.5,
+                    ),
+                    right: BorderSide(
+                      color: Colors.grey.withOpacity(0.2),
+                      width: 0.5,
+                    ),
                   ),
                 ),
                 child: Stack(
@@ -263,8 +325,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ],
                 ),
               ));
-            }
-          
+          },
         ),
       );
     }
@@ -281,10 +342,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
               width: boxSize,
               height: boxSize,
               decoration: BoxDecoration(
-                color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.15), // less opacity
-                border: Border.all(
-                  color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.3), // less opacity
-                  width: 0.25,
+                color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.15),
+                border: Border(
+                  top: BorderSide(
+                    color: Colors.grey.withOpacity(0.2),
+                    width: 0.5,
+                  ),
+                  right: BorderSide(
+                    color: Colors.grey.withOpacity(0.2),
+                    width: 0.5,
+                  ),
                 ),
               ),
               child: Center(
@@ -293,7 +360,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: boxSize * 0.4,
-                    color: Theme.of(context).disabledColor.withOpacity(0.4), // less opacity
+                    color: Theme.of(context).disabledColor.withOpacity(0.4),
                   ),
                 ),
               ),
@@ -311,6 +378,124 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
+  Widget _buildWeekView(BuildContext context) {
+    final weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    List<DateTime> weekDates = List.generate(7, (i) => _focusedWeekStart.add(Duration(days: i)));
+
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.chevron_left),
+              onPressed: _goToPreviousWeek,
+            ),
+            Text(
+              "${weekDates.first.day}/${weekDates.first.month} - ${weekDates.last.day}/${weekDates.last.month}",
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            IconButton(
+              icon: const Icon(Icons.chevron_right),
+              onPressed: _goToNextWeek,
+            ),
+          ],
+        ),
+        Row(
+          children: weekDates.map((date) {
+            return Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  border: Border(
+                    right: BorderSide(
+                      color: Colors.grey.withOpacity(0.2),
+                      width: 0.5,
+                    ),
+                  ),
+                  color: date.year == _today.year &&
+                          date.month == _today.month &&
+                          date.day == _today.day
+                      ? Colors.blue.withOpacity(0.1)
+                      : null,
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      weekDays[date.weekday % 7],
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    Text(
+                      "${date.day}/${date.month}",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: date.year == _today.year &&
+                                date.month == _today.month &&
+                                date.day == _today.day
+                            ? Colors.blue
+                            : null,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add, size: 18),
+                      tooltip: "Add Event",
+                      onPressed: () => _addEvent(date),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: weekDates.map((date) {
+              final events = _events[DateTime(date.year, date.month, date.day)] ?? [];
+              return Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      right: BorderSide(
+                        color: Colors.grey.withOpacity(0.2), // thin column border
+                        width: 0.5,
+                      ),
+                    ),
+                  ),
+                  child: ListView(
+                    children: events.isEmpty
+                        ? [
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Text(
+                                "No events",
+                                style: TextStyle(
+                                  color: Theme.of(context).disabledColor,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          ]
+                        : events
+                            .map((event) => Card(
+                                  margin: const EdgeInsets.all(8),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text(event),
+                                  ),
+                                ))
+                            .toList(),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -320,7 +505,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(''),
+        title: Text(_isWeekView ? 'Week View' : 'Month View'),
         actions: [
           IconButton(
             icon: Icon(
@@ -331,59 +516,70 @@ class _CalendarScreenState extends State<CalendarScreen> {
             onPressed: widget.onToggleTheme,
             tooltip: 'Toggle Theme',
           ),
+          IconButton(
+            icon: Icon(_isWeekView ? Icons.calendar_month : Icons.view_week),
+            onPressed: _toggleView,
+            tooltip: _isWeekView ? 'Month View' : 'Week View',
+          ),
         ],
       ),
       body: Column(
         children: [
           const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.chevron_left),
-                onPressed: _goToPreviousMonth,
-              ),
-              Text(
-                "${_focusedMonth.year}-${_focusedMonth.month.toString().padLeft(2, '0')}",
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              IconButton(
-                icon: const Icon(Icons.chevron_right),
-                onPressed: _goToNextMonth,
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: weekDays
-                  .map((name) => Expanded(
-                        child: Center(
-                          child: Text(
-                            name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+          if (!_isWeekView)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.chevron_left),
+                  onPressed: _goToPreviousMonth,
+                ),
+                Text(
+                  "${_focusedMonth.year}-${_focusedMonth.month.toString().padLeft(2, '0')}",
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right),
+                  onPressed: _goToNextMonth,
+                ),
+              ],
+            ),
+          if (!_isWeekView)
+            const SizedBox(height: 16),
+          if (!_isWeekView)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: weekDays
+                    .map((name) => Expanded(
+                          child: Center(
+                            child: Text(
+                              name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                             ),
                           ),
-                        ),
-                      ))
-                  .toList(),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: _buildResponsiveDaysGrid(context),
+                        ))
+                    .toList(),
               ),
             ),
+          if (!_isWeekView)
+            const SizedBox(height: 8),
+          Expanded(
+            child: !_isWeekView
+                ? SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: _buildResponsiveDaysGrid(context),
+                    ),
+                  )
+                : _buildWeekView(context),
           ),
           const SizedBox(height: 16),
-          if (_selectedDate != null)
+          if (_selectedDate != null && !_isWeekView)
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Column(
