@@ -134,7 +134,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   void _addEvent(DateTime date) async {
     String title = '';
-    TimeOfDay? selectedTime;
+    TimeOfDay? startTime;
+    TimeOfDay? endTime;
     String location = '';
     String notes = '';
     String contacts = '';
@@ -146,42 +147,76 @@ class _CalendarScreenState extends State<CalendarScreen> {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              title: const Text('Add Event'),
+              title: const Text('Add Event', style: TextStyle(color: Colors.black)),
               content: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     TextField(
                       decoration: const InputDecoration(labelText: 'Title'),
+                      style: const TextStyle(color: Colors.black),
                       onChanged: (value) => title = value,
                     ),
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        const Text('Time:', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const Text('Start Time:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
                         const SizedBox(width: 12),
                         ElevatedButton(
                           onPressed: () async {
                             final picked = await showTimePicker(
                               context: context,
-                              initialTime: selectedTime ?? TimeOfDay.now(),
+                              initialTime: startTime ?? TimeOfDay.now(),
                             );
                             if (picked != null) {
                               setState(() {
-                                selectedTime = picked;
+                                startTime = picked;
                               });
                             }
                           },
-                          child: const Text('Select Time'),
+                          child: const Text('Select'),
                         ),
-                        if (selectedTime != null)
+                        if (startTime != null)
                           Padding(
                             padding: const EdgeInsets.only(left: 12),
                             child: Text(
-                              selectedTime!.format(context),
+                              startTime!.format(context),
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: Colors.blue,
+                                color: Colors.black,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Text('End Time:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+                        const SizedBox(width: 12),
+                        ElevatedButton(
+                          onPressed: () async {
+                            final picked = await showTimePicker(
+                              context: context,
+                              initialTime: endTime ?? (startTime ?? TimeOfDay.now()),
+                            );
+                            if (picked != null) {
+                              setState(() {
+                                endTime = picked;
+                              });
+                            }
+                          },
+                          child: const Text('Select'),
+                        ),
+                        if (endTime != null)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 12),
+                            child: Text(
+                              endTime!.format(context),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
                                 fontSize: 16,
                               ),
                             ),
@@ -191,18 +226,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     const SizedBox(height: 12),
                     TextField(
                       decoration: const InputDecoration(labelText: 'Location'),
+                      style: const TextStyle(color: Colors.black),
                       onChanged: (value) => location = value,
                     ),
                     TextField(
                       decoration: const InputDecoration(labelText: 'Notes'),
+                      style: const TextStyle(color: Colors.black),
                       onChanged: (value) => notes = value,
                     ),
                     TextField(
                       decoration: const InputDecoration(labelText: 'Attachment (URL or name)'),
+                      style: const TextStyle(color: Colors.black),
                       onChanged: (value) => attachment = value,
                     ),
                     TextField(
                       decoration: const InputDecoration(labelText: 'Contacts'),
+                      style: const TextStyle(color: Colors.black),
                       onChanged: (value) => contacts = value,
                     ),
                   ],
@@ -211,21 +250,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.black)),
                 ),
                 ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context, {
                       'title': title,
-                      'hour': selectedTime?.hour,
-                      'minute': selectedTime?.minute,
+                      'startHour': startTime?.hour,
+                      'startMinute': startTime?.minute,
+                      'endHour': endTime?.hour,
+                      'endMinute': endTime?.minute,
                       'location': location,
                       'notes': notes,
                       'attachment': attachment,
                       'contacts': contacts,
                     });
                   },
-                  child: const Text('Add'),
+                  child: const Text('Add', style: TextStyle(color: Colors.black)),
                 ),
               ],
             );
@@ -238,168 +279,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
       setState(() {
         final key = DateTime(date.year, date.month, date.day);
         final eventDetails =
-            "Title: ${result['title']}\nTime: ${(result['hour'] as int?)?.toString().padLeft(2, '0') ?? '--'}:${(result['minute'] as int?)?.toString().padLeft(2, '0') ?? '--'}\nLocation: ${result['location']}\nNotes: ${result['notes']}\nAttachment: ${result['attachment']}\nContacts: ${result['contacts']}";
+            "Title: ${result['title']}\nStart: ${(result['startHour'] as int?)?.toString().padLeft(2, '0') ?? '--'}:${(result['startMinute'] as int?)?.toString().padLeft(2, '0') ?? '--'}\nEnd: ${(result['endHour'] as int?)?.toString().padLeft(2, '0') ?? '--'}:${(result['endMinute'] as int?)?.toString().padLeft(2, '0') ?? '--'}\nLocation: ${result['location']}\nNotes: ${result['notes']}\nAttachment: ${result['attachment']}\nContacts: ${result['contacts']}";
         _events.putIfAbsent(key, () => []).add(eventDetails);
         _selectedDate = key;
       });
     }
   }
 
-  void _showDayEventsPopup(DateTime date) {
-    final events = _events[DateTime(date.year, date.month, date.day)] ?? [];
-    if (events.isEmpty) return;
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Events', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: events.map((event) {
-                // Parse event details
-                final lines = event.split('\n');
-                String title = '';
-                String time = '';
-                String location = '';
-                for (var line in lines) {
-                  if (line.startsWith('Title:')) {
-                    title = line.replaceFirst('Title: ', '');
-                  } else if (line.startsWith('Time:')) {
-                    time = line.replaceFirst('Time: ', '');
-                  } else if (line.startsWith('Location:')) {
-                    location = line.replaceFirst('Location: ', '');
-                  }
-                }
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      Text(location, style: const TextStyle(fontSize: 16, color: Colors.grey)),
-                      const SizedBox(height: 8),
-                      Text(
-                        time,
-                        style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.blue),
-                      ),
-                      const Divider(),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showDayEventsFullScreen(DateTime date) async {
-    final events = _events[DateTime(date.year, date.month, date.day)] ?? [];
-    if (events.isEmpty) return;
-
-    // Group events by hour
-    Map<String, List<Map<String, String>>> eventsByHour = {};
-    for (var event in events) {
-      final lines = event.split('\n');
-      String title = '';
-      String time = '';
-      String location = '';
-      for (var line in lines) {
-        if (line.startsWith('Title:')) {
-          title = line.replaceFirst('Title: ', '');
-        } else if (line.startsWith('Time:')) {
-          time = line.replaceFirst('Time: ', '');
-        } else if (line.startsWith('Location:')) {
-          location = line.replaceFirst('Location: ', '');
-        }
-      }
-      final hour = time.split(':').first;
-      eventsByHour.putIfAbsent(hour, () => []).add({
-        'title': title,
-        'time': time,
-        'location': location,
-      });
-    }
-
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => Scaffold(
-          appBar: AppBar(
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            title: const Text('Events', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-          ),
-          body: SafeArea(
-            child: eventsByHour.isEmpty
-                ? const Center(child: Text('No events'))
-                : ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: eventsByHour.entries.map((entry) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "${entry.key.padLeft(2, '0')}:00",
-                            style: const TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue,
-                            ),
-                          ),
-                          ...entry.value.map((event) => Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      event['title'] ?? '',
-                                      style: const TextStyle(
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      event['location'] ?? '',
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      event['time'] ?? '',
-                                      style: const TextStyle(
-                                        fontSize: 28,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.blue,
-                                      ),
-                                    ),
-                                    const Divider(),
-                                  ],
-                                ),
-                              )),
-                        ],
-                      );
-                    }).toList(),
-                  ),
-          ),
-        ),
-      ),
-    );
-  }
 
   void _showDayEventsTimeSlotsPage(DateTime date) async {
     final events = _events[DateTime(date.year, date.month, date.day)] ?? [];
@@ -620,9 +507,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
           ),
         ),
-      ),
-    );
+      ));
   }
+
 
   Widget _buildResponsiveDaysGrid(BuildContext context) {
     final firstDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
