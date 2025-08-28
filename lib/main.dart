@@ -134,75 +134,132 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   void _addEvent(DateTime date) async {
     String title = '';
-    String duration = '';
+    int hour = 0;
+    int minute = 0;
     String location = '';
     String notes = '';
     String contacts = '';
     String attachment = '';
+    bool timeSelected = false;
 
-    final result = await showDialog<Map<String, String>>(
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Add Event'),
-          content: SingleChildScrollView(
-            child: Column(
-              children: [
-                TextField(
-                  decoration: const InputDecoration(labelText: 'Title'),
-                  onChanged: (value) => title = value,
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Add Event'),
+              content: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      decoration: const InputDecoration(labelText: 'Title'),
+                      onChanged: (value) => title = value,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Text('Time:', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(width: 12),
+                        DropdownButton<int>(
+                          value: hour,
+                          hint: const Text('Hour'),
+                          items: List.generate(24, (i) => DropdownMenuItem(
+                            value: i,
+                            child: Text(i.toString().padLeft(2, '0')),
+                          )),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() {
+                                hour = value;
+                                timeSelected = true;
+                              });
+                            }
+                          },
+                        ),
+                        const Text(':'),
+                        DropdownButton<int>(
+                          value: minute,
+                          hint: const Text('Minute'),
+                          items: List.generate(60, (i) => DropdownMenuItem(
+                            value: i,
+                            child: Text(i.toString().padLeft(2, '0')),
+                          )),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() {
+                                minute = value;
+                                timeSelected = true;
+                              });
+                            }
+                          },
+                        ),
+                        if (timeSelected)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 12),
+                            child: Text(
+                              "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}",
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      decoration: const InputDecoration(labelText: 'Location'),
+                      onChanged: (value) => location = value,
+                    ),
+                    TextField(
+                      decoration: const InputDecoration(labelText: 'Notes'),
+                      onChanged: (value) => notes = value,
+                    ),
+                    TextField(
+                      decoration: const InputDecoration(labelText: 'Attachment (URL or name)'),
+                      onChanged: (value) => attachment = value,
+                    ),
+                    TextField(
+                      decoration: const InputDecoration(labelText: 'Contacts'),
+                      onChanged: (value) => contacts = value,
+                    ),
+                  ],
                 ),
-                TextField(
-                  decoration: const InputDecoration(labelText: 'Duration'),
-                  onChanged: (value) => duration = value,
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
                 ),
-                TextField(
-                  decoration: const InputDecoration(labelText: 'Location'),
-                  onChanged: (value) => location = value,
-                ),
-                TextField(
-                  decoration: const InputDecoration(labelText: 'Notes'),
-                  onChanged: (value) => notes = value,
-                ),
-                TextField(
-                  decoration: const InputDecoration(labelText: 'Attachment (URL or name)'),
-                  onChanged: (value) => attachment = value,
-                ),
-                TextField(
-                  decoration: const InputDecoration(labelText: 'Contacts'),
-                  onChanged: (value) => contacts = value,
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context, {
+                      'title': title,
+                      'hour': hour,
+                      'minute': minute,
+                      'location': location,
+                      'notes': notes,
+                      'attachment': attachment,
+                      'contacts': contacts,
+                    });
+                  },
+                  child: const Text('Add'),
                 ),
               ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context, {
-                  'title': title,
-                  'duration': duration,
-                  'location': location,
-                  'notes': notes,
-                  'attachment': attachment,
-                  'contacts': contacts,
-                });
-              },
-              child: const Text('Add'),
-            ),
-          ],
+            );
+          },
         );
       },
     );
 
-    if (result != null && result['title']!.trim().isNotEmpty) {
+    if (result != null && (result['title'] as String).trim().isNotEmpty) {
       setState(() {
         final key = DateTime(date.year, date.month, date.day);
         final eventDetails =
-            "Title: ${result['title']}\nDuration: ${result['duration']}\nLocation: ${result['location']}\nNotes: ${result['notes']}\nAttachment: ${result['attachment']}\nContacts: ${result['contacts']}";
+            "Title: ${result['title']}\nTime: ${result['hour'].toString().padLeft(2, '0')}:${result['minute'].toString().padLeft(2, '0')}\nLocation: ${result['location']}\nNotes: ${result['notes']}\nAttachment: ${result['attachment']}\nContacts: ${result['contacts']}";
         _events.putIfAbsent(key, () => []).add(eventDetails);
         _selectedDate = key;
       });
@@ -503,6 +560,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
         ? _events[DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day)] ?? []
         : [];
 
+    // Month name in English
+    final monthName = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ][_focusedMonth.month - 1];
+
     return Scaffold(
       appBar: AppBar(
         title: Text(_isWeekView ? 'Week View' : 'Month View'),
@@ -527,22 +590,46 @@ class _CalendarScreenState extends State<CalendarScreen> {
         children: [
           const SizedBox(height: 16),
           if (!_isWeekView)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.chevron_left),
-                  onPressed: _goToPreviousMonth,
-                ),
-                Text(
-                  "${_focusedMonth.year}-${_focusedMonth.month.toString().padLeft(2, '0')}",
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right),
-                  onPressed: _goToNextMonth,
-                ),
-              ],
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                children: [
+                  // Month name and year on the left
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        monthName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 28,
+                        ),
+                      ),
+                      Text(
+                        _focusedMonth.year.toString(),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  // Navigation buttons on the right
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.chevron_left),
+                        onPressed: _goToPreviousMonth,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.chevron_right),
+                        onPressed: _goToNextMonth,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           if (!_isWeekView)
             const SizedBox(height: 16),
