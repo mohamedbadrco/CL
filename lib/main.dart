@@ -134,13 +134,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   void _addEvent(DateTime date) async {
     String title = '';
-    int hour = 0;
-    int minute = 0;
+    TimeOfDay? selectedTime;
     String location = '';
     String notes = '';
     String contacts = '';
     String attachment = '';
-    bool timeSelected = false;
 
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
@@ -162,44 +160,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       children: [
                         const Text('Time:', style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(width: 12),
-                        DropdownButton<int>(
-                          value: hour,
-                          hint: const Text('Hour'),
-                          items: List.generate(24, (i) => DropdownMenuItem(
-                            value: i,
-                            child: Text(i.toString().padLeft(2, '0')),
-                          )),
-                          onChanged: (value) {
-                            if (value != null) {
+                        ElevatedButton(
+                          onPressed: () async {
+                            final picked = await showTimePicker(
+                              context: context,
+                              initialTime: selectedTime ?? TimeOfDay.now(),
+                            );
+                            if (picked != null) {
                               setState(() {
-                                hour = value;
-                                timeSelected = true;
+                                selectedTime = picked;
                               });
                             }
                           },
+                          child: const Text('Select Time'),
                         ),
-                        const Text(':'),
-                        DropdownButton<int>(
-                          value: minute,
-                          hint: const Text('Minute'),
-                          items: List.generate(60, (i) => DropdownMenuItem(
-                            value: i,
-                            child: Text(i.toString().padLeft(2, '0')),
-                          )),
-                          onChanged: (value) {
-                            if (value != null) {
-                              setState(() {
-                                minute = value;
-                                timeSelected = true;
-                              });
-                            }
-                          },
-                        ),
-                        if (timeSelected)
+                        if (selectedTime != null)
                           Padding(
                             padding: const EdgeInsets.only(left: 12),
                             child: Text(
-                              "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}",
+                              selectedTime!.format(context),
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.blue,
@@ -238,8 +217,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   onPressed: () {
                     Navigator.pop(context, {
                       'title': title,
-                      'hour': hour,
-                      'minute': minute,
+                      'hour': selectedTime?.hour,
+                      'minute': selectedTime?.minute,
                       'location': location,
                       'notes': notes,
                       'attachment': attachment,
@@ -259,7 +238,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       setState(() {
         final key = DateTime(date.year, date.month, date.day);
         final eventDetails =
-            "Title: ${result['title']}\nTime: ${result['hour'].toString().padLeft(2, '0')}:${result['minute'].toString().padLeft(2, '0')}\nLocation: ${result['location']}\nNotes: ${result['notes']}\nAttachment: ${result['attachment']}\nContacts: ${result['contacts']}";
+            "Title: ${result['title']}\nTime: ${(result['hour'] as int?)?.toString().padLeft(2, '0') ?? '--'}:${(result['minute'] as int?)?.toString().padLeft(2, '0') ?? '--'}\nLocation: ${result['location']}\nNotes: ${result['notes']}\nAttachment: ${result['attachment']}\nContacts: ${result['contacts']}";
         _events.putIfAbsent(key, () => []).add(eventDetails);
         _selectedDate = key;
       });
