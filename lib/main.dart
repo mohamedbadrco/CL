@@ -141,32 +141,65 @@ class _CalendarScreenState extends State<CalendarScreen> {
     String contacts = '';
     String attachment = '';
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final bgColor = isDark ? theme.scaffoldBackgroundColor : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final buttonColor = isDark ? Colors.greenAccent.shade700 : Colors.green.shade400;
+
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              title: const Text('Add Event', style: TextStyle(color: Colors.black)),
+              backgroundColor: bgColor,
+              title: Text('Add Event', style: TextStyle(color: textColor)),
               content: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     TextField(
-                      decoration: const InputDecoration(labelText: 'Title'),
-                      style: const TextStyle(color: Colors.black),
+                      decoration: InputDecoration(
+                        labelText: 'Title',
+                        labelStyle: TextStyle(color: textColor),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: buttonColor),
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: buttonColor),
+                        ),
+                      ),
+                      style: TextStyle(color: textColor),
                       onChanged: (value) => title = value,
                     ),
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        const Text('Start Time:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+                        Text('Start Time:', style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
                         const SizedBox(width: 12),
                         ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: buttonColor,
+                            foregroundColor: Colors.white,
+                          ),
                           onPressed: () async {
                             final picked = await showTimePicker(
                               context: context,
                               initialTime: startTime ?? TimeOfDay.now(),
+                              builder: (context, child) {
+                                return Theme(
+                                  data: theme.copyWith(
+                                    colorScheme: theme.colorScheme.copyWith(
+                                      primary: buttonColor,
+                                      onPrimary: Colors.white,
+                                      surface: bgColor,
+                                      onSurface: textColor,
+                                    ),
+                                  ),
+                                  child: child!,
+                                );
+                              },
                             );
                             if (picked != null) {
                               setState(() {
@@ -181,9 +214,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             padding: const EdgeInsets.only(left: 12),
                             child: Text(
                               startTime!.format(context),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black,
+                                color: textColor,
                                 fontSize: 16,
                               ),
                             ),
@@ -193,13 +226,30 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        const Text('End Time:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+                        Text('End Time:', style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
                         const SizedBox(width: 12),
                         ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: buttonColor,
+                            foregroundColor: Colors.white,
+                          ),
                           onPressed: () async {
                             final picked = await showTimePicker(
                               context: context,
                               initialTime: endTime ?? (startTime ?? TimeOfDay.now()),
+                              builder: (context, child) {
+                                return Theme(
+                                  data: theme.copyWith(
+                                    colorScheme: theme.colorScheme.copyWith(
+                                      primary: buttonColor,
+                                      onPrimary: Colors.white,
+                                      surface: bgColor,
+                                      onSurface: textColor,
+                                    ),
+                                  ),
+                                  child: child!,
+                                );
+                              },
                             );
                             if (picked != null) {
                               setState(() {
@@ -214,9 +264,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             padding: const EdgeInsets.only(left: 12),
                             child: Text(
                               endTime!.format(context),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black,
+                                color: textColor,
                                 fontSize: 16,
                               ),
                             ),
@@ -225,23 +275,59 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     ),
                     const SizedBox(height: 12),
                     TextField(
-                      decoration: const InputDecoration(labelText: 'Location'),
-                      style: const TextStyle(color: Colors.black),
+                      decoration: InputDecoration(
+                        labelText: 'Location',
+                        labelStyle: TextStyle(color: textColor),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: buttonColor),
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: buttonColor),
+                        ),
+                      ),
+                      style: TextStyle(color: textColor),
                       onChanged: (value) => location = value,
                     ),
                     TextField(
-                      decoration: const InputDecoration(labelText: 'Notes'),
-                      style: const TextStyle(color: Colors.black),
+                      decoration: InputDecoration(
+                        labelText: 'Notes',
+                        labelStyle: TextStyle(color: textColor),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: buttonColor),
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: buttonColor),
+                        ),
+                      ),
+                      style: TextStyle(color: textColor),
                       onChanged: (value) => notes = value,
                     ),
                     TextField(
-                      decoration: const InputDecoration(labelText: 'Attachment (URL or name)'),
-                      style: const TextStyle(color: Colors.black),
+                      decoration: InputDecoration(
+                        labelText: 'Attachment (URL or name)',
+                        labelStyle: TextStyle(color: textColor),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: buttonColor),
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: buttonColor),
+                        ),
+                      ),
+                      style: TextStyle(color: textColor),
                       onChanged: (value) => attachment = value,
                     ),
                     TextField(
-                      decoration: const InputDecoration(labelText: 'Contacts'),
-                      style: const TextStyle(color: Colors.black),
+                      decoration: InputDecoration(
+                        labelText: 'Contacts',
+                        labelStyle: TextStyle(color: textColor),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: buttonColor),
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: buttonColor),
+                        ),
+                      ),
+                      style: TextStyle(color: textColor),
                       onChanged: (value) => contacts = value,
                     ),
                   ],
@@ -250,9 +336,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel', style: TextStyle(color: Colors.black)),
+                  child: Text('Cancel', style: TextStyle(color: buttonColor)),
                 ),
                 ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: buttonColor,
+                    foregroundColor: Colors.white,
+                  ),
                   onPressed: () {
                     Navigator.pop(context, {
                       'title': title,
@@ -266,7 +356,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       'contacts': contacts,
                     });
                   },
-                  child: const Text('Add', style: TextStyle(color: Colors.black)),
+                  child: const Text('Add'),
                 ),
               ],
             );
