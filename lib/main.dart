@@ -245,6 +245,64 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
+  void _showDayEventsPopup(DateTime date) {
+    final events = _events[DateTime(date.year, date.month, date.day)] ?? [];
+    if (events.isEmpty) return;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Events', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: events.map((event) {
+                // Parse event details
+                final lines = event.split('\n');
+                String title = '';
+                String time = '';
+                String location = '';
+                for (var line in lines) {
+                  if (line.startsWith('Title:')) {
+                    title = line.replaceFirst('Title: ', '');
+                  } else if (line.startsWith('Time:')) {
+                    time = line.replaceFirst('Time: ', '');
+                  } else if (line.startsWith('Location:')) {
+                    location = line.replaceFirst('Location: ', '');
+                  }
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      Text(location, style: const TextStyle(fontSize: 16, color: Colors.grey)),
+                      const SizedBox(height: 8),
+                      Text(
+                        time,
+                        style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.blue),
+                      ),
+                      const Divider(),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildResponsiveDaysGrid(BuildContext context) {
     final firstDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
     final daysInMonth =
@@ -320,6 +378,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 setState(() {
                   _selectedDate = date;
                 });
+                if (hasEvent) {
+                  _showDayEventsPopup(date);
+                }
               },
               onDoubleTap: () {
                 _addEvent(date);
@@ -535,9 +596,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    final selectedEvents = _selectedDate != null
-        ? _events[DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day)] ?? []
-        : [];
 
     // Month name in English
     final monthName = [
@@ -645,29 +703,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 : _buildWeekView(context),
           ),
           const SizedBox(height: 16),
-          if (_selectedDate != null && !_isWeekView)
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Selected date: ${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}",
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  ...selectedEvents.map((event) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2.0),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.event, size: 18, color: Color.fromARGB(255, 255, 255, 255)),
-                            const SizedBox(width: 4),
-                            Expanded(child: Text(event)),
-                          ],
-                        ),
-                      )),
-                ],
-              ),
-            ),
         ],
       ),
     );
