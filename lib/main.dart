@@ -401,6 +401,208 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
+  void _showDayEventsTimeSlotsPage(DateTime date) async {
+    final events = _events[DateTime(date.year, date.month, date.day)] ?? [];
+    if (events.isEmpty) return;
+
+    // Parse events into a list of maps with title, start hour, start minute, duration (default 1 hour if not specified)
+    List<Map<String, dynamic>> parsedEvents = [];
+    for (var event in events) {
+      final lines = event.split('\n');
+      String title = '';
+      String time = '';
+      String location = '';
+      String notes = '';
+      String contacts = '';
+      String attachment = '';
+      int hour = 0;
+      int minute = 0;
+      int duration = 1; // default 1 hour
+
+      for (var line in lines) {
+        if (line.startsWith('Title:')) {
+          title = line.replaceFirst('Title: ', '');
+        } else if (line.startsWith('Time:')) {
+          time = line.replaceFirst('Time: ', '');
+          final parts = time.split(':');
+          if (parts.length == 2) {
+            hour = int.tryParse(parts[0]) ?? 0;
+            minute = int.tryParse(parts[1]) ?? 0;
+          }
+        } else if (line.startsWith('Location:')) {
+          location = line.replaceFirst('Location: ', '');
+        } else if (line.startsWith('Notes:')) {
+          notes = line.replaceFirst('Notes: ', '');
+        } else if (line.startsWith('Contacts:')) {
+          contacts = line.replaceFirst('Contacts: ', '');
+        } else if (line.startsWith('Attachment:')) {
+          attachment = line.replaceFirst('Attachment: ', '');
+        } else if (line.startsWith('Duration:')) {
+          duration = int.tryParse(line.replaceFirst('Duration: ', '')) ?? 1;
+        }
+      }
+      parsedEvents.add({
+        'title': title,
+        'hour': hour,
+        'minute': minute,
+        'duration': duration,
+        'location': location,
+        'notes': notes,
+        'contacts': contacts,
+        'attachment': attachment,
+        'time': time,
+      });
+    }
+
+    // Time slots from 11 AM to 10 AM next day (24 slots)
+    List<int> timeSlots = List.generate(24, (i) => (11 + i) % 24);
+
+    final ScrollController scrollController = ScrollController();
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            title: const Text('Events', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          ),
+          body: Container(
+            color: Colors.blue.shade50,
+            child: ListView.builder(
+              controller: scrollController,
+              itemCount: timeSlots.length,
+              itemBuilder: (context, index) {
+                final hour = timeSlots[index];
+                final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+                final ampm = hour < 12 ? 'AM' : 'PM';
+
+                // Find events that start at this hour
+                final slotEvents = parsedEvents.where((event) => event['hour'] == hour).toList();
+
+                return Container(
+                  height: 60,
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: Colors.grey.withOpacity(0.2), width: 0.5),
+                    ),
+                    color: Colors.blue.shade50,
+                  ),
+                  child: Row(
+                    children: [
+                      // Time slot
+                      Container(
+                        width: 70,
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 8),
+                        child: Text(
+                          '$displayHour $ampm',
+                          style: const TextStyle(fontSize: 16, color: Colors.blue),
+                        ),
+                      ),
+                      // Vertical divider
+                      Container(
+                        width: 1,
+                        height: 60,
+                        color: Colors.blue.shade200,
+                      ),
+                      // Events area
+                      Expanded(
+                        child: Stack(
+                          children: slotEvents.map((event) {
+                            double top = (event['minute'] / 60.0) * 60.0;
+                            double height = (event['duration'] ?? 1) * 60.0;
+                            return Positioned(
+                              top: top,
+                              left: 8,
+                              right: 8,
+                              height: height,
+                              child: GestureDetector(
+                                onTap: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) {
+                                      return AlertDialog(
+                                        title: Text(event['title'], style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                                        content: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text('Time: ${event['time']}', style: const TextStyle(fontSize: 18, color: Colors.blue)),
+                                            if ((event['location'] as String).isNotEmpty)
+                                              Padding(
+                                                padding: const EdgeInsets.only(top: 8),
+                                                child: Text('Location: ${event['location']}', style: const TextStyle(fontSize: 16)),
+                                              ),
+                                            if ((event['notes'] as String).isNotEmpty)
+                                              Padding(
+                                                padding: const EdgeInsets.only(top: 8),
+                                                child: Text('Notes: ${event['notes']}', style: const TextStyle(fontSize: 16)),
+                                              ),
+                                            if ((event['contacts'] as String).isNotEmpty)
+                                              Padding(
+                                                padding: const EdgeInsets.only(top: 8),
+                                                child: Text('Contacts: ${event['contacts']}', style: const TextStyle(fontSize: 16)),
+                                              ),
+                                            if ((event['attachment'] as String).isNotEmpty)
+                                              Padding(
+                                                padding: const EdgeInsets.only(top: 8),
+                                                child: Text('Attachment: ${event['attachment']}', style: const TextStyle(fontSize: 16)),
+                                              ),
+                                          ],
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context),
+                                            child: const Text('Close'),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                },
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.shade300,
+                                    borderRadius: BorderRadius.circular(8),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.blue.withOpacity(0.1),
+                                        blurRadius: 2,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  alignment: Alignment.centerLeft,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  child: Text(
+                                    event['title'],
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                      color: Colors.white,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildResponsiveDaysGrid(BuildContext context) {
     final firstDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
     final daysInMonth =
@@ -477,7 +679,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   _selectedDate = date;
                 });
                 if (hasEvent) {
-                  _showDayEventsFullScreen(date);
+                  _showDayEventsTimeSlotsPage(date);
                 }
               },
               onDoubleTap: () {
