@@ -303,6 +303,104 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
+  void _showDayEventsFullScreen(DateTime date) async {
+    final events = _events[DateTime(date.year, date.month, date.day)] ?? [];
+    if (events.isEmpty) return;
+
+    // Group events by hour
+    Map<String, List<Map<String, String>>> eventsByHour = {};
+    for (var event in events) {
+      final lines = event.split('\n');
+      String title = '';
+      String time = '';
+      String location = '';
+      for (var line in lines) {
+        if (line.startsWith('Title:')) {
+          title = line.replaceFirst('Title: ', '');
+        } else if (line.startsWith('Time:')) {
+          time = line.replaceFirst('Time: ', '');
+        } else if (line.startsWith('Location:')) {
+          location = line.replaceFirst('Location: ', '');
+        }
+      }
+      final hour = time.split(':').first;
+      eventsByHour.putIfAbsent(hour, () => []).add({
+        'title': title,
+        'time': time,
+        'location': location,
+      });
+    }
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            title: const Text('Events', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          ),
+          body: SafeArea(
+            child: eventsByHour.isEmpty
+                ? const Center(child: Text('No events'))
+                : ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: eventsByHour.entries.map((entry) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "${entry.key.padLeft(2, '0')}:00",
+                            style: const TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue,
+                            ),
+                          ),
+                          ...entry.value.map((event) => Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      event['title'] ?? '',
+                                      style: const TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      event['location'] ?? '',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      event['time'] ?? '',
+                                      style: const TextStyle(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.blue,
+                                      ),
+                                    ),
+                                    const Divider(),
+                                  ],
+                                ),
+                              )),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildResponsiveDaysGrid(BuildContext context) {
     final firstDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
     final daysInMonth =
@@ -379,7 +477,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   _selectedDate = date;
                 });
                 if (hasEvent) {
-                  _showDayEventsPopup(date);
+                  _showDayEventsFullScreen(date);
                 }
               },
               onDoubleTap: () {
