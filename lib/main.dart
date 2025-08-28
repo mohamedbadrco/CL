@@ -457,20 +457,33 @@ class _CalendarScreenState extends State<CalendarScreen> {
     // Time slots from 11 AM to 10 AM next day (24 slots)
     List<int> timeSlots = List.generate(24, (i) => (11 + i) % 24);
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final bgColor = isDark ? theme.scaffoldBackgroundColor : const Color(0xFFF2FFF5);
+    final accentColor = isDark ? Colors.greenAccent.shade700 : Colors.green.shade400;
+    final textColor = isDark ? Colors.white : Colors.black;
+
     final ScrollController scrollController = ScrollController();
 
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => Scaffold(
+          backgroundColor: bgColor,
           appBar: AppBar(
+            backgroundColor: bgColor,
+            foregroundColor: textColor,
+            elevation: 0,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
+              icon: Icon(Icons.arrow_back, color: accentColor),
               onPressed: () => Navigator.of(context).pop(),
             ),
-            title: const Text('Events', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            title: Text(
+              'Events',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textColor),
+            ),
           ),
           body: Container(
-            color: Colors.blue.shade50,
+            color: bgColor,
             child: ListView.builder(
               controller: scrollController,
               itemCount: timeSlots.length,
@@ -486,9 +499,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   height: 60,
                   decoration: BoxDecoration(
                     border: Border(
-                      bottom: BorderSide(color: Colors.grey.withOpacity(0.2), width: 0.5),
+                      bottom: BorderSide(color: accentColor.withOpacity(0.2), width: 0.5),
                     ),
-                    color: Colors.blue.shade50,
+                    color: bgColor,
                   ),
                   child: Row(
                     children: [
@@ -499,14 +512,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         padding: const EdgeInsets.only(right: 8),
                         child: Text(
                           '$displayHour $ampm',
-                          style: const TextStyle(fontSize: 16, color: Colors.blue),
+                          style: TextStyle(fontSize: 16, color: accentColor, fontWeight: FontWeight.bold),
                         ),
                       ),
                       // Vertical divider
                       Container(
                         width: 1,
                         height: 60,
-                        color: Colors.blue.shade200,
+                        color: accentColor.withOpacity(0.6),
                       ),
                       // Events area
                       Expanded(
@@ -525,38 +538,46 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                     context: context,
                                     builder: (context) {
                                       return AlertDialog(
-                                        title: Text(event['title'], style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                                        backgroundColor: bgColor,
+                                        title: Text(
+                                          event['title'],
+                                          style: TextStyle(
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.bold,
+                                            color: accentColor,
+                                          ),
+                                        ),
                                         content: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Text('Time: ${event['time']}', style: const TextStyle(fontSize: 18, color: Colors.blue)),
+                                            Text('Time: ${event['time']}', style: TextStyle(fontSize: 18, color: accentColor)),
                                             if ((event['location'] as String).isNotEmpty)
                                               Padding(
                                                 padding: const EdgeInsets.only(top: 8),
-                                                child: Text('Location: ${event['location']}', style: const TextStyle(fontSize: 16)),
+                                                child: Text('Location: ${event['location']}', style: TextStyle(fontSize: 16, color: textColor)),
                                               ),
                                             if ((event['notes'] as String).isNotEmpty)
                                               Padding(
                                                 padding: const EdgeInsets.only(top: 8),
-                                                child: Text('Notes: ${event['notes']}', style: const TextStyle(fontSize: 16)),
+                                                child: Text('Notes: ${event['notes']}', style: TextStyle(fontSize: 16, color: textColor)),
                                               ),
                                             if ((event['contacts'] as String).isNotEmpty)
                                               Padding(
                                                 padding: const EdgeInsets.only(top: 8),
-                                                child: Text('Contacts: ${event['contacts']}', style: const TextStyle(fontSize: 16)),
+                                                child: Text('Contacts: ${event['contacts']}', style: TextStyle(fontSize: 16, color: textColor)),
                                               ),
                                             if ((event['attachment'] as String).isNotEmpty)
                                               Padding(
                                                 padding: const EdgeInsets.only(top: 8),
-                                                child: Text('Attachment: ${event['attachment']}', style: const TextStyle(fontSize: 16)),
+                                                child: Text('Attachment: ${event['attachment']}', style: TextStyle(fontSize: 16, color: textColor)),
                                               ),
                                           ],
                                         ),
                                         actions: [
                                           TextButton(
                                             onPressed: () => Navigator.pop(context),
-                                            child: const Text('Close'),
+                                            child: Text('Close', style: TextStyle(color: accentColor)),
                                           ),
                                         ],
                                       );
@@ -565,11 +586,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                 },
                                 child: Container(
                                   decoration: BoxDecoration(
-                                    color: Colors.blue.shade300,
+                                    color: accentColor,
                                     borderRadius: BorderRadius.circular(8),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.blue.withOpacity(0.1),
+                                        color: accentColor.withOpacity(0.1),
                                         blurRadius: 2,
                                         offset: const Offset(0, 2),
                                       ),
@@ -579,7 +600,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                   padding: const EdgeInsets.symmetric(horizontal: 12),
                                   child: Text(
                                     event['title'],
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 18,
                                       color: Colors.white,
@@ -903,26 +924,37 @@ class _CalendarScreenState extends State<CalendarScreen> {
       'July', 'August', 'September', 'October', 'November', 'December'
     ][_focusedMonth.month - 1];
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final bgColor = isDark ? theme.scaffoldBackgroundColor : const Color(0xFFF2FFF5);
+    final accentColor = isDark ? Colors.greenAccent.shade700 : Colors.green.shade400;
+    final textColor = isDark ? Colors.white : Colors.black;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isWeekView ? 'Week View' : 'Month View'),
+        backgroundColor: bgColor,
+        foregroundColor: textColor,
+        elevation: 0,
+        title: Text(_isWeekView ? 'Week View' : 'Month View', style: TextStyle(color: textColor)),
         actions: [
           IconButton(
             icon: Icon(
               widget.themeMode == ThemeMode.light
                   ? Icons.dark_mode
                   : Icons.light_mode,
+              color: accentColor,
             ),
             onPressed: widget.onToggleTheme,
             tooltip: 'Toggle Theme',
           ),
           IconButton(
-            icon: Icon(_isWeekView ? Icons.calendar_month : Icons.view_week),
+            icon: Icon(_isWeekView ? Icons.calendar_month : Icons.view_week, color: accentColor),
             onPressed: _toggleView,
             tooltip: _isWeekView ? 'Month View' : 'Week View',
           ),
         ],
       ),
+      backgroundColor: bgColor,
       body: Column(
         children: [
           const SizedBox(height: 16),
@@ -937,16 +969,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     children: [
                       Text(
                         monthName,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 28,
+                          color: accentColor,
                         ),
                       ),
                       Text(
                         _focusedMonth.year.toString(),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
-                          color: Colors.grey,
+                          color: textColor.withOpacity(0.7),
                         ),
                       ),
                     ],
@@ -956,11 +989,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   Row(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.chevron_left),
+                        icon: Icon(Icons.chevron_left, color: accentColor),
                         onPressed: _goToPreviousMonth,
                       ),
                       IconButton(
-                        icon: const Icon(Icons.chevron_right),
+                        icon: Icon(Icons.chevron_right, color: accentColor),
                         onPressed: _goToNextMonth,
                       ),
                     ],
@@ -980,9 +1013,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           child: Center(
                             child: Text(
                               name,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
+                                color: accentColor,
                               ),
                             ),
                           ),
