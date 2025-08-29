@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // For date formatting
-
-// Assuming you have an Event class/map like this
+// Assuming you have an Event class/map like
 class Event {
   final String title;
   final TimeOfDay startTime;
   final TimeOfDay endTime;
   final String location;
   final String notes;
+
   // Add other fields as needed
 
   Event({
@@ -52,7 +52,7 @@ class DayScheduleView extends StatelessWidget {
       return true; // Add date checking if necessary
     }).toList()
       ..sort((a, b) =>
-          (a.startTime.hour * 60 + a.startTime.minute) -
+      (a.startTime.hour * 60 + a.startTime.minute) -
           (b.startTime.hour * 60 + b.startTime.minute));
 
     return SingleChildScrollView(
@@ -83,7 +83,7 @@ class DayScheduleView extends StatelessWidget {
               border: Border(
                 top: BorderSide(color: Colors.grey.shade300, width: 1),
                 // Optional: bottom border for the last slot
-                bottom: (i == totalHours -1)
+                bottom: (i == totalHours - 1)
                     ? BorderSide(color: Colors.grey.shade300, width: 1)
                     : BorderSide.none,
               ),
@@ -100,7 +100,9 @@ class DayScheduleView extends StatelessWidget {
             height: hourHeight,
             alignment: Alignment.topCenter,
             child: Text(
-              DateFormat('h a').format(DateTime(date.year, date.month, date.day, hour)), // Display hour
+              DateFormat('h a').format(
+                  DateTime(date.year, date.month, date.day, hour)),
+              // Display hour
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
           ),
@@ -133,16 +135,26 @@ class DayScheduleView extends StatelessWidget {
           child: Container(
             height: eventHeight,
             padding: const EdgeInsets.all(4),
-            margin: const EdgeInsets.only(bottom: 2), // Spacing between events
+            margin: const EdgeInsets.only(bottom: 2),
+            // Spacing between events
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.8),
+              color: Theme
+                  .of(context)
+                  .colorScheme
+                  .primary
+                  .withOpacity(0.8),
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Theme.of(context).colorScheme.primary),
+              border: Border.all(color: Theme
+                  .of(context)
+                  .colorScheme
+                  .primary),
             ),
             child: Text(
               event.title,
               style: TextStyle(
-                  color: Theme.of(context).brightness == Brightness.dark
+                  color: Theme
+                      .of(context)
+                      .brightness == Brightness.dark
                       ? Colors.white
                       : Colors.black,
                   fontSize: 12),
@@ -152,8 +164,9 @@ class DayScheduleView extends StatelessWidget {
         ),
       );
     }
-     // Calculate total height for the Stack based on time slots
-    double totalStackHeight = (TamaxTime.hour - TaminTime.hour + 1) * hourHeight;
+    // Calculate total height for the Stack based on time slots
+    double totalStackHeight = (TamaxTime.hour - TaminTime.hour + 1) *
+        hourHeight;
 
     return SizedBox(
       height: totalStackHeight, // Ensure Stack has enough height
