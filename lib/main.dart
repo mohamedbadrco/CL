@@ -1,4 +1,167 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart'; // For date formatting
+
+// Event class from new.dart
+class Event {
+  final String title;
+  final TimeOfDay startTime;
+  final TimeOfDay endTime;
+  final String location;
+  final String notes;
+
+  Event({
+    required this.title,
+    required this.startTime,
+    required this.endTime,
+    this.location = '',
+    this.notes = '',
+  });
+
+  int get durationInMinutes {
+    final startMinutes = startTime.hour * 60 + startTime.minute;
+    final endMinutes = endTime.hour * 60 + endTime.minute;
+    return endMinutes - startMinutes;
+  }
+}
+
+// DayScheduleView class from new.dart
+class DayScheduleView extends StatelessWidget {
+  final DateTime date;
+  final List<Event> events;
+  final double hourHeight; // Height of each hour slot in the timeline
+  final TimeOfDay TaminTime; //e.g. TimeOfDay(hour: 0, minute: 0);
+  final TimeOfDay TamaxTime; //e.g., TimeOfDay(hour: 23, minute: 59)
+
+  const DayScheduleView({
+    super.key,
+    required this.date,
+    required this.events,
+    this.hourHeight = 60.0, // e.g., 60 pixels per hour
+    this.TaminTime = const TimeOfDay(hour: 0, minute: 0),
+    this.TamaxTime = const TimeOfDay(hour: 23, minute: 59),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final todayEvents = events.where((event) {
+      return true; // Assuming events are already filtered for the day
+    }).toList()
+      ..sort((a, b) =>
+      (a.startTime.hour * 60 + a.startTime.minute) -
+          (b.startTime.hour * 60 + b.startTime.minute));
+
+    return SingleChildScrollView(
+      child: Stack(
+        children: [
+          _buildTimeSlots(context),
+          _buildEvents(context, todayEvents),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimeSlots(BuildContext context) {
+    List<Widget> timeSlots = [];
+    final int totalHours = TamaxTime.hour - TaminTime.hour + 1;
+
+    for (int i = 0; i < totalHours; i++) {
+      final hour = TaminTime.hour + i;
+      timeSlots.add(
+        Positioned(
+          top: i * hourHeight,
+          left: 50, // For time labels
+          right: 0,
+          child: Container(
+            height: hourHeight,
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: Colors.grey.shade300, width: 1),
+                bottom: (i == totalHours - 1)
+                    ? BorderSide(color: Colors.grey.shade300, width: 1)
+                    : BorderSide.none,
+              ),
+            ),
+          ),
+        ),
+      );
+      timeSlots.add(
+        Positioned(
+          top: i * hourHeight - (hourHeight / 4), // Adjust for centering
+          left: 0,
+          child: Container(
+            width: 45, // Width of the time label area
+            height: hourHeight,
+            alignment: Alignment.topCenter,
+            child: Text(
+              DateFormat('h a').format(
+                  DateTime(date.year, date.month, date.day, hour)),
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ),
+        ),
+      );
+    }
+    double totalHeight = totalHours * hourHeight;
+
+    return SizedBox(
+      height: totalHeight,
+      child: Stack(children: timeSlots),
+    );
+  }
+
+  Widget _buildEvents(BuildContext context, List<Event> dayEvents) {
+    List<Widget> eventWidgets = [];
+
+    for (var event in dayEvents) {
+      final double topOffset = _calculateTopOffset(event.startTime);
+      final double eventHeight = _calculateEventHeight(event.durationInMinutes);
+
+      eventWidgets.add(
+        Positioned(
+          top: topOffset,
+          left: 50, 
+          right: 10, 
+          child: Container(
+            height: eventHeight,
+            padding: const EdgeInsets.all(4),
+            margin: const EdgeInsets.only(bottom: 2),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.8),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Theme.of(context).colorScheme.primary),
+            ),
+            child: Text(
+              event.title,
+              style: TextStyle(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black,
+                  fontSize: 12),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      );
+    }
+    double totalStackHeight = (TamaxTime.hour - TaminTime.hour + 1) * hourHeight;
+
+    return SizedBox(
+      height: totalStackHeight, 
+      child: Stack(children: eventWidgets),
+    );
+  }
+
+  double _calculateTopOffset(TimeOfDay startTime) {
+    final startMinutes = startTime.hour * 60 + startTime.minute;
+    final TaminMinutes = TaminTime.hour * 60 + TaminTime.minute;
+    final minutesFromDisplayStart = startMinutes - TaminMinutes;
+    return (minutesFromDisplayStart / 60.0) * hourHeight;
+  }
+
+  double _calculateEventHeight(int durationInMinutes) {
+    return (durationInMinutes / 60.0) * hourHeight;
+  }
+}
 
 void main() {
   runApp(const CalendarApp());
@@ -27,13 +190,13 @@ class _CalendarAppState extends State<CalendarApp> {
       title: 'Scrollable Calendar',
       theme: ThemeData(
         brightness: Brightness.light,
-        scaffoldBackgroundColor: const Color.fromARGB(255, 255, 255, 255), // even lighter green
+        scaffoldBackgroundColor: const Color.fromARGB(255, 255, 255, 255),
         colorScheme: ColorScheme.fromSwatch().copyWith(
           primary:  const Color(0xFFF2FFF5),
           secondary: const Color.fromARGB(255, 255, 255, 255),
         ),
         appBarTheme: const AppBarTheme(
-          backgroundColor:  Color.fromARGB(255, 251, 251, 251), // lighter green for app bar
+          backgroundColor:  Color.fromARGB(255, 251, 251, 251),
           foregroundColor: Colors.black,
         ),
       ),
@@ -64,7 +227,7 @@ class CalendarScreen extends StatefulWidget {
 class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _focusedMonth = DateTime(DateTime.now().year, DateTime.now().month);
   DateTime? _selectedDate;
-  final Map<DateTime, List<String>> _events = {};
+  final Map<DateTime, List<Event>> _events = {}; // Changed to List<Event>
   final DateTime _today = DateTime(
     DateTime.now().year,
     DateTime.now().month,
@@ -138,8 +301,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
     TimeOfDay? endTime;
     String location = '';
     String notes = '';
-    String contacts = '';
-    String attachment = '';
+    // String contacts = ''; // Not used in Event class from new.dart
+    // String attachment = ''; // Not used in Event class from new.dart
 
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -278,7 +441,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       decoration: InputDecoration(
                         labelText: 'Location',
                         labelStyle: TextStyle(color: textColor),
-                        enabledBorder: UnderlineInputBorder(
+                         enabledBorder: UnderlineInputBorder(
                           borderSide: BorderSide(color: buttonColor),
                         ),
                         focusedBorder: UnderlineInputBorder(
@@ -292,7 +455,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       decoration: InputDecoration(
                         labelText: 'Notes',
                         labelStyle: TextStyle(color: textColor),
-                        enabledBorder: UnderlineInputBorder(
+                         enabledBorder: UnderlineInputBorder(
                           borderSide: BorderSide(color: buttonColor),
                         ),
                         focusedBorder: UnderlineInputBorder(
@@ -302,34 +465,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       style: TextStyle(color: textColor),
                       onChanged: (value) => notes = value,
                     ),
-                    TextField(
-                      decoration: InputDecoration(
-                        labelText: 'Attachment (URL or name)',
-                        labelStyle: TextStyle(color: textColor),
-                        enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: buttonColor),
-                        ),
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: buttonColor),
-                        ),
-                      ),
-                      style: TextStyle(color: textColor),
-                      onChanged: (value) => attachment = value,
-                    ),
-                    TextField(
-                      decoration: InputDecoration(
-                        labelText: 'Contacts',
-                        labelStyle: TextStyle(color: textColor),
-                        enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: buttonColor),
-                        ),
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: buttonColor),
-                        ),
-                      ),
-                      style: TextStyle(color: textColor),
-                      onChanged: (value) => contacts = value,
-                    ),
+                    // Fields for attachment and contacts are removed as they are not in the Event class from new.dart
                   ],
                 ),
               ),
@@ -352,8 +488,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       'endMinute': endTime?.minute,
                       'location': location,
                       'notes': notes,
-                      'attachment': attachment,
-                      'contacts': contacts,
                     });
                   },
                   child: const Text('Add'),
@@ -366,68 +500,43 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
 
     if (result != null && (result['title'] as String).trim().isNotEmpty) {
-      setState(() {
-        final key = DateTime(date.year, date.month, date.day);
-        final eventDetails =
-            "Title: ${result['title']}\nStart: ${(result['startHour'] as int?)?.toString().padLeft(2, '0') ?? '--'}:${(result['startMinute'] as int?)?.toString().padLeft(2, '0') ?? '--'}\nEnd: ${(result['endHour'] as int?)?.toString().padLeft(2, '0') ?? '--'}:${(result['endMinute'] as int?)?.toString().padLeft(2, '0') ?? '--'}\nLocation: ${result['location']}\nNotes: ${result['notes']}\nAttachment: ${result['attachment']}\nContacts: ${result['contacts']}";
-        _events.putIfAbsent(key, () => []).add(eventDetails);
-        _selectedDate = key;
-      });
+      if (result['startHour'] != null && result['startMinute'] != null &&
+          result['endHour'] != null && result['endMinute'] != null) {
+        
+        final newEvent = Event(
+          title: result['title'] as String,
+          startTime: TimeOfDay(hour: result['startHour'] as int, minute: result['startMinute'] as int),
+          endTime: TimeOfDay(hour: result['endHour'] as int, minute: result['endMinute'] as int),
+          location: result['location'] as String? ?? '',
+          notes: result['notes'] as String? ?? '',
+        );
+
+        setState(() {
+          final key = DateTime(date.year, date.month, date.day);
+          _events.putIfAbsent(key, () => []).add(newEvent);
+          _selectedDate = key;
+        });
+
+      } else {
+        if (mounted) {
+             ScaffoldMessenger.of(context).showSnackBar(
+               const SnackBar(content: Text('Event title and valid start/end times are required.')),
+             );
+        }
+      }
     }
   }
 
-
-
-  void _showDayEventsTimeSlotsPage(DateTime date) async {
-    final events = _events[DateTime(date.year, date.month, date.day)] ?? [];
-    if (events.isEmpty) return;
-
-    // Parse events into a list of maps with title, start/end hour/minute
-    List<Map<String, dynamic>> parsedEvents = [];
-    for (var event in events) {
-      final lines = event.split('\n');
-      String title = '';
-      int startHour = 0;
-      int startMinute = 0;
-      int endHour = 0;
-      int endMinute = 0;
-      for (var line in lines) {
-        if (line.startsWith('Title:')) {
-          title = line.replaceFirst('Title: ', '');
-        } else if (line.startsWith('Start:')) {
-          final time = line.replaceFirst('Start: ', '');
-          final parts = time.split(':');
-          if (parts.length == 2) {
-            startHour = int.tryParse(parts[0]) ?? 0;
-            startMinute = int.tryParse(parts[1]) ?? 0;
-          }
-        } else if (line.startsWith('End:')) {
-          final time = line.replaceFirst('End: ', '');
-          final parts = time.split(':');
-          if (parts.length == 2) {
-            endHour = int.tryParse(parts[0]) ?? 0;
-            endMinute = int.tryParse(parts[1]) ?? 0;
-          }
-        }
-      }
-      parsedEvents.add({
-        'title': title,
-        'startHour': startHour,
-        'startMinute': startMinute,
-        'endHour': endHour,
-        'endMinute': endMinute,
-      });
-    }
+  void _showDayEventsTimeSlotsPage(DateTime date) {
+    final dayEvents = _events[DateTime(date.year, date.month, date.day)] ?? [];
 
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final bgColor = isDark ? Colors.black : Colors.white;
-    final accentColor = isDark ? Colors.blue.shade400 : Colors.blue.shade200;
+    final bgColor = isDark ? theme.scaffoldBackgroundColor : const Color(0xFFF2FFF5);
     final textColor = isDark ? Colors.white : Colors.black;
+    final accentColor = isDark ? Colors.greenAccent.shade700 : Colors.green.shade400;
 
-    final ScrollController scrollController = ScrollController();
-
-    await Navigator.of(context).push(
+    Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => Scaffold(
           backgroundColor: bgColor,
@@ -440,108 +549,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
               onPressed: () => Navigator.of(context).pop(),
             ),
             title: Text(
-              '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textColor),
+              'Schedule for ${DateFormat.yMMMd().format(date)}',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
             ),
           ),
-          body: LayoutBuilder(
-            builder: (context, constraints) {
-              final hourHeight = 60.0;
-              return Stack(
-                children: [
-                  ListView.builder(
-                    controller: scrollController,
-                    itemCount: 24,
-                    itemBuilder: (context, index) {
-                      final hour = index;
-                      final displayHour = hour == 0
-                          ? '12 AM'
-                          : hour < 12
-                              ? '$hour AM'
-                              : hour == 12
-                                  ? '12 PM'
-                                  : '${hour - 12} PM';
-                      return Container(
-                        height: hourHeight,
-                        decoration: BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(color: Colors.grey.withOpacity(0.15), width: 0.5),
-                          ),
-                          color: bgColor,
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 60,
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.only(right: 8),
-                              child: Text(
-                                displayHour,
-                                style: TextStyle(fontSize: 15, color: textColor),
-                              ),
-                            ),
-                            Container(
-                              width: 1,
-                              height: hourHeight,
-                              color: Colors.grey.withOpacity(0.3),
-                            ),
-                            const Expanded(child: SizedBox()),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                  ...parsedEvents.map((event) {
-                    int startTotalMinutes = (event['startHour'] as int) * 60 + (event['startMinute'] as int);
-                    int endTotalMinutes = (event['endHour'] as int) * 60 + (event['endMinute'] as int);
-                    if (endTotalMinutes <= startTotalMinutes) endTotalMinutes += 24 * 60;
-                    double top = startTotalMinutes * hourHeight / 60.0;
-                    double height = (endTotalMinutes - startTotalMinutes) * hourHeight / 60.0;
-
-                    return Positioned(
-                      top: top,
-                      left: 69, // 60 for time + 1 for divider + 8 padding
-                      right: 16,
-                      height: height,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: accentColor,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        alignment: Alignment.topLeft,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              event['title'].isEmpty ? '(No title)' : event['title'],
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: isDark ? Colors.white : Colors.black,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              "${_formatHourMinute(event['startHour'], event['startMinute'])} – ${_formatHourMinute(event['endHour'], event['endMinute'])}",
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: isDark ? Colors.white70 : Colors.black87,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
-                ],
-              );
-            },
+          body: DayScheduleView(
+            date: date,
+            events: dayEvents,
+            // Example: Customize time range displayed
+            // TaminTime: const TimeOfDay(hour: 7, minute: 0), 
+            // TamaxTime: const TimeOfDay(hour: 22, minute: 0),
           ),
         ),
-      ));
+      ),
+    );
   }
-
 
   Widget _buildResponsiveDaysGrid(BuildContext context) {
     final firstDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
@@ -550,7 +572,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final weekdayOffset = firstDayOfMonth.weekday % 7;
     List<Widget> dayWidgets = [];
 
-    // Previous month's days to fill the grid
     final prevMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1);
     final prevMonthDays = DateTime(prevMonth.year, prevMonth.month + 1, 0).day;
     for (int i = 0; i < weekdayOffset; i++) {
@@ -591,7 +612,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       );
     }
 
-    // Current month's days
     for (int day = 1; day <= daysInMonth; day++) {
       final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
       final isSelected = _selectedDate != null &&
@@ -667,7 +687,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       );
     }
 
-    // Next month's days to fill the grid
     int totalBoxes = dayWidgets.length;
     int nextDays = (totalBoxes % 7 == 0) ? 0 : (7 - totalBoxes % 7);
     for (int i = 1; i <= nextDays; i++) {
@@ -789,19 +808,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: weekDates.map((date) {
-              final events = _events[DateTime(date.year, date.month, date.day)] ?? [];
+              final daySpecificEvents = _events[DateTime(date.year, date.month, date.day)] ?? [];
               return Expanded(
                 child: Container(
                   decoration: BoxDecoration(
                     border: Border(
                       right: BorderSide(
-                        color: Colors.grey.withOpacity(0.2), // thin column border
+                        color: Colors.grey.withOpacity(0.2),
                         width: 0.5,
                       ),
                     ),
                   ),
                   child: ListView(
-                    children: events.isEmpty
+                    children: daySpecificEvents.isEmpty
                         ? [
                             Padding(
                               padding: const EdgeInsets.all(8.0),
@@ -814,12 +833,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               ),
                             ),
                           ]
-                        : events
+                        : daySpecificEvents
                             .map((event) => Card(
-                                  margin: const EdgeInsets.all(8),
+                                  margin: const EdgeInsets.all(4),
                                   child: Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text(event),
+                                    padding: const EdgeInsets.all(6.0),
+                                    child: Column(
+                                       crossAxisAlignment: CrossAxisAlignment.start,
+                                       children: [
+                                         Text(event.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                         Text('${event.startTime.format(context)} - ${event.endTime.format(context)}'),
+                                         if (event.location.isNotEmpty) Text('Loc: ${event.location}', style: const TextStyle(fontSize: 12)),
+                                       ],
+                                ),
                                   ),
                                 ))
                             .toList(),
@@ -836,8 +862,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-    // Month name in English
     final monthName = [
       'January', 'February', 'March', 'April', 'May', 'June',
       'July', 'August', 'September', 'October', 'November', 'December'
@@ -882,7 +906,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Row(
                 children: [
-                  // Month name and year on the left
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -904,7 +927,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     ],
                   ),
                   const Spacer(),
-                  // Navigation buttons on the right
                   Row(
                     children: [
                       IconButton(
@@ -960,12 +982,4 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ),
     );
   }
-}
-
-String _formatHourMinute(int hour, int minute) {
-  final h = hour % 24;
-  final m = minute.toString().padLeft(2, '0');
-  final ampm = h < 12 ? 'am' : 'pm';
-  final displayHour = h == 0 ? 12 : (h > 12 ? h - 12 : h);
-  return '$displayHour:$m$ampm';
 }
