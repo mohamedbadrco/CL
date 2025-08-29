@@ -63,6 +63,11 @@ class DayScheduleView extends StatelessWidget {
   Widget _buildTimeSlots(BuildContext context) {
     List<Widget> timeSlots = [];
     final int totalHours = TamaxTime.hour - TaminTime.hour + 1;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final slotBorderColor = isDark ? Colors.grey.shade700 : Colors.grey.shade300;
+    final timeLabelColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+
 
     for (int i = 0; i < totalHours; i++) {
       final hour = TaminTime.hour + i;
@@ -75,9 +80,9 @@ class DayScheduleView extends StatelessWidget {
             height: hourHeight,
             decoration: BoxDecoration(
               border: Border(
-                top: BorderSide(color: Colors.grey.shade300, width: 1),
+                top: BorderSide(color: slotBorderColor, width: 0.5),
                 bottom: (i == totalHours - 1)
-                    ? BorderSide(color: Colors.grey.shade300, width: 1)
+                    ? BorderSide(color: slotBorderColor, width: 0.5)
                     : BorderSide.none,
               ),
             ),
@@ -95,7 +100,7 @@ class DayScheduleView extends StatelessWidget {
             child: Text(
               DateFormat('h a').format(
                   DateTime(date.year, date.month, date.day, hour)),
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: 12, color: timeLabelColor),
             ),
           ),
         ),
@@ -111,6 +116,11 @@ class DayScheduleView extends StatelessWidget {
 
   Widget _buildEvents(BuildContext context, List<Event> dayEvents) {
     List<Widget> eventWidgets = [];
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final eventBgColor = isDark ? Colors.teal.shade700 : Colors.teal.shade400; // Accent color for events
+    final eventTextColor = isDark ? Colors.white : Colors.white; // Text on event boxes
+
 
     for (var event in dayEvents) {
       final double topOffset = _calculateTopOffset(event.startTime);
@@ -119,24 +129,22 @@ class DayScheduleView extends StatelessWidget {
       eventWidgets.add(
         Positioned(
           top: topOffset,
-          left: 50, 
+          left: 55, // Shifted right a bit
           right: 10, 
           child: Container(
             height: eventHeight,
-            padding: const EdgeInsets.all(4),
+            padding: const EdgeInsets.all(6),
             margin: const EdgeInsets.only(bottom: 2),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.8),
+              color: eventBgColor.withOpacity(0.9),
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Theme.of(context).colorScheme.primary),
             ),
             child: Text(
               event.title,
               style: TextStyle(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white
-                      : Colors.black,
-                  fontSize: 12),
+                  color: eventTextColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -159,7 +167,9 @@ class DayScheduleView extends StatelessWidget {
   }
 
   double _calculateEventHeight(int durationInMinutes) {
-    return (durationInMinutes / 60.0) * hourHeight;
+    // Ensure minimum height for very short events to be visible
+    final calculatedHeight = (durationInMinutes / 60.0) * hourHeight;
+    return calculatedHeight < 20.0 ? 20.0 : calculatedHeight;
   }
 }
 
@@ -190,17 +200,59 @@ class _CalendarAppState extends State<CalendarApp> {
       title: 'Scrollable Calendar',
       theme: ThemeData(
         brightness: Brightness.light,
-        scaffoldBackgroundColor: const Color.fromARGB(255, 255, 255, 255),
-        colorScheme: ColorScheme.fromSwatch().copyWith(
-          primary:  const Color(0xFFF2FFF5),
-          secondary: const Color.fromARGB(255, 255, 255, 255),
+        scaffoldBackgroundColor: const Color(0xFFFAFDFB), // Light mode background
+        colorScheme: ColorScheme.fromSwatch(
+          primarySwatch: Colors.teal, // Used for generating other colors if not specified
+        ).copyWith(
+          primary: Colors.teal.shade600, // Light mode accent
+          secondary: Colors.teal.shade400,
+          surface: const Color(0xFFFAFDFB), // Background for cards, dialogs
+          onPrimary: Colors.white, // Text on primary color
+          onSecondary: Colors.black,
+          onSurface: const Color(0xFF202124), // Main text color
         ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor:  Color.fromARGB(255, 251, 251, 251),
-          foregroundColor: Colors.black,
+        appBarTheme: AppBarTheme(
+          backgroundColor: const Color(0xFFFAFDFB), // Light mode app bar
+          foregroundColor: const Color(0xFF202124), // Light mode app bar text/icons
+          elevation: 0,
         ),
+        textTheme: const TextTheme(
+          bodyLarge: TextStyle(color: Color(0xFF202124)),
+          bodyMedium: TextStyle(color: Color(0xFF202124)),
+          titleLarge: TextStyle(color: Color(0xFF202124), fontWeight: FontWeight.bold),
+          labelLarge: TextStyle(color: Color(0xFF00897B)), // For button text if needed
+        ),
+        iconTheme: IconThemeData(color: Colors.teal.shade600),
+        dividerColor: Colors.grey.shade300,
       ),
-      darkTheme: ThemeData.dark(),
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: const Color(0xFF202124), // Dark mode background
+        colorScheme: ColorScheme.fromSwatch(
+            primarySwatch: Colors.teal,
+            brightness: Brightness.dark,
+        ).copyWith(
+          primary: Colors.teal.shade300, // Dark mode accent
+          secondary: Colors.teal.shade200,
+          surface: const Color(0xFF202124), // Background for cards, dialogs
+          onPrimary: Colors.black, // Text on primary color
+          onSecondary: Colors.black,
+          onSurface: const Color(0xFFE8EAED), // Main text color
+        ),
+        appBarTheme: AppBarTheme(
+          backgroundColor: const Color(0xFF202124), // Dark mode app bar
+          foregroundColor: const Color(0xFFE8EAED), // Dark mode app bar text/icons
+          elevation: 0,
+        ),
+        textTheme: const TextTheme(
+          bodyLarge: TextStyle(color: Color(0xFFE8EAED)),
+          bodyMedium: TextStyle(color: Color(0xFFE8EAED)),
+          titleLarge: TextStyle(color: Color(0xFFE8EAED), fontWeight: FontWeight.bold),
+          labelLarge: TextStyle(color: Color(0xFF4DB6AC)),
+        ),
+        iconTheme: IconThemeData(color: Colors.teal.shade300),
+        dividerColor: Colors.grey.shade700,
+      ),
       themeMode: _themeMode,
       home: CalendarScreen(
         themeMode: _themeMode,
@@ -301,200 +353,187 @@ class _CalendarScreenState extends State<CalendarScreen> {
     TimeOfDay? endTime;
     String location = '';
     String notes = '';
-    // String contacts = ''; // Not used in Event class from new.dart
-    // String attachment = ''; // Not used in Event class from new.dart
 
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final bgColor = isDark ? theme.scaffoldBackgroundColor : Colors.white;
-    final textColor = isDark ? Colors.white : Colors.black;
-    final buttonColor = isDark ? Colors.greenAccent.shade700 : Colors.green.shade400;
+    final currentTheme = Theme.of(context); // Use current theme from context for dialog
+    final isDialogDark = currentTheme.brightness == Brightness.dark;
+
+    // Use ColorScheme for dialog components for better theme adherence
+    final dialogBgColor = currentTheme.colorScheme.surface;
+    final dialogTextColor = currentTheme.colorScheme.onSurface;
+    final dialogAccentColor = currentTheme.colorScheme.primary;
+    final dialogOnAccentColor = currentTheme.colorScheme.onPrimary;
+
 
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              backgroundColor: bgColor,
-              title: Text('Add Event', style: TextStyle(color: textColor)),
-              content: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextField(
-                      decoration: InputDecoration(
-                        labelText: 'Title',
-                        labelStyle: TextStyle(color: textColor),
-                        enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: buttonColor),
-                        ),
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: buttonColor),
-                        ),
-                      ),
-                      style: TextStyle(color: textColor),
-                      onChanged: (value) => title = value,
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Text('Start Time:', style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
-                        const SizedBox(width: 12),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: buttonColor,
-                            foregroundColor: Colors.white,
+        // Wrap with a Theme to ensure dialog uses the correct theme properties
+        return Theme(
+          data: currentTheme, 
+          child: StatefulBuilder(
+            builder: (context, setState) {
+              return AlertDialog(
+                backgroundColor: dialogBgColor,
+                title: Text('Add Event', style: TextStyle(color: dialogTextColor)),
+                content: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        decoration: InputDecoration(
+                          labelText: 'Title',
+                          labelStyle: TextStyle(color: dialogTextColor.withOpacity(0.7)),
+                          enabledBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: dialogAccentColor),
                           ),
-                          onPressed: () async {
-                            final picked = await showTimePicker(
-                              context: context,
-                              initialTime: startTime ?? TimeOfDay.now(),
-                              builder: (context, child) {
-                                return Theme(
-                                  data: theme.copyWith(
-                                    colorScheme: theme.colorScheme.copyWith(
-                                      primary: buttonColor,
-                                      onPrimary: Colors.white,
-                                      surface: bgColor,
-                                      onSurface: textColor,
-                                    ),
-                                  ),
-                                  child: child!,
-                                );
-                              },
-                            );
-                            if (picked != null) {
-                              setState(() {
-                                startTime = picked;
-                              });
-                            }
-                          },
-                          child: const Text('Select'),
+                          focusedBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: dialogAccentColor, width: 2),
+                          ),
                         ),
-                        if (startTime != null)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 12),
-                            child: Text(
-                              startTime!.format(context),
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: textColor,
-                                fontSize: 16,
+                        style: TextStyle(color: dialogTextColor),
+                        onChanged: (value) => title = value,
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Text('Start Time:', style: TextStyle(fontWeight: FontWeight.bold, color: dialogTextColor)),
+                          const SizedBox(width: 12),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: dialogAccentColor,
+                              foregroundColor: dialogOnAccentColor,
+                            ),
+                            onPressed: () async {
+                              final picked = await showTimePicker(
+                                context: context,
+                                initialTime: startTime ?? TimeOfDay.now(),
+                                builder: (context, child) {
+                                  // TimePicker already uses AlertDialog's theme context
+                                  return child!;
+                                },
+                              );
+                              if (picked != null) {
+                                setState(() {
+                                  startTime = picked;
+                                });
+                              }
+                            },
+                            child: const Text('Select'),
+                          ),
+                          if (startTime != null)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 12),
+                              child: Text(
+                                startTime!.format(context),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: dialogTextColor,
+                                  fontSize: 16,
+                                ),
                               ),
                             ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Text('End Time:', style: TextStyle(fontWeight: FontWeight.bold, color: dialogTextColor)),
+                          const SizedBox(width: 12),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: dialogAccentColor,
+                              foregroundColor: dialogOnAccentColor,
+                            ),
+                            onPressed: () async {
+                              final picked = await showTimePicker(
+                                context: context,
+                                initialTime: endTime ?? (startTime ?? TimeOfDay.now()),
+                                builder: (context, child) {
+                                  return child!;
+                                },
+                              );
+                              if (picked != null) {
+                                setState(() {
+                                  endTime = picked;
+                                });
+                              }
+                            },
+                            child: const Text('Select'),
                           ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Text('End Time:', style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
-                        const SizedBox(width: 12),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: buttonColor,
-                            foregroundColor: Colors.white,
-                          ),
-                          onPressed: () async {
-                            final picked = await showTimePicker(
-                              context: context,
-                              initialTime: endTime ?? (startTime ?? TimeOfDay.now()),
-                              builder: (context, child) {
-                                return Theme(
-                                  data: theme.copyWith(
-                                    colorScheme: theme.colorScheme.copyWith(
-                                      primary: buttonColor,
-                                      onPrimary: Colors.white,
-                                      surface: bgColor,
-                                      onSurface: textColor,
-                                    ),
-                                  ),
-                                  child: child!,
-                                );
-                              },
-                            );
-                            if (picked != null) {
-                              setState(() {
-                                endTime = picked;
-                              });
-                            }
-                          },
-                          child: const Text('Select'),
-                        ),
-                        if (endTime != null)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 12),
-                            child: Text(
-                              endTime!.format(context),
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: textColor,
-                                fontSize: 16,
+                          if (endTime != null)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 12),
+                              child: Text(
+                                endTime!.format(context),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: dialogTextColor,
+                                  fontSize: 16,
+                                ),
                               ),
                             ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        decoration: InputDecoration(
+                          labelText: 'Location',
+                          labelStyle: TextStyle(color: dialogTextColor.withOpacity(0.7)),
+                           enabledBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: dialogAccentColor),
                           ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      decoration: InputDecoration(
-                        labelText: 'Location',
-                        labelStyle: TextStyle(color: textColor),
-                         enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: buttonColor),
+                          focusedBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: dialogAccentColor, width: 2),
+                          ),
                         ),
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: buttonColor),
-                        ),
+                        style: TextStyle(color: dialogTextColor),
+                        onChanged: (value) => location = value,
                       ),
-                      style: TextStyle(color: textColor),
-                      onChanged: (value) => location = value,
-                    ),
-                    TextField(
-                      decoration: InputDecoration(
-                        labelText: 'Notes',
-                        labelStyle: TextStyle(color: textColor),
-                         enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: buttonColor),
+                      const SizedBox(height: 12),
+                      TextField(
+                        decoration: InputDecoration(
+                          labelText: 'Notes',
+                          labelStyle: TextStyle(color: dialogTextColor.withOpacity(0.7)),
+                           enabledBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: dialogAccentColor),
+                          ),
+                          focusedBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: dialogAccentColor, width: 2),
+                          ),
                         ),
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: buttonColor),
-                        ),
+                        style: TextStyle(color: dialogTextColor),
+                        onChanged: (value) => notes = value,
                       ),
-                      style: TextStyle(color: textColor),
-                      onChanged: (value) => notes = value,
-                    ),
-                    // Fields for attachment and contacts are removed as they are not in the Event class from new.dart
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text('Cancel', style: TextStyle(color: buttonColor)),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: buttonColor,
-                    foregroundColor: Colors.white,
+                    ],
                   ),
-                  onPressed: () {
-                    Navigator.pop(context, {
-                      'title': title,
-                      'startHour': startTime?.hour,
-                      'startMinute': startTime?.minute,
-                      'endHour': endTime?.hour,
-                      'endMinute': endTime?.minute,
-                      'location': location,
-                      'notes': notes,
-                    });
-                  },
-                  child: const Text('Add'),
                 ),
-              ],
-            );
-          },
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('Cancel', style: TextStyle(color: dialogAccentColor)),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: dialogAccentColor,
+                      foregroundColor: dialogOnAccentColor,
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context, {
+                        'title': title,
+                        'startHour': startTime?.hour,
+                        'startMinute': startTime?.minute,
+                        'endHour': endTime?.hour,
+                        'endMinute': endTime?.minute,
+                        'location': location,
+                        'notes': notes,
+                      });
+                    },
+                    child: const Text('Add'),
+                  ),
+                ],
+              );
+            },
+          ),
         );
       },
     );
@@ -530,33 +569,30 @@ class _CalendarScreenState extends State<CalendarScreen> {
   void _showDayEventsTimeSlotsPage(DateTime date) {
     final dayEvents = _events[DateTime(date.year, date.month, date.day)] ?? [];
 
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final bgColor = isDark ? theme.scaffoldBackgroundColor : const Color(0xFFF2FFF5);
-    final textColor = isDark ? Colors.white : Colors.black;
-    final accentColor = isDark ? Colors.greenAccent.shade700 : Colors.green.shade400;
+    // Colors are now primarily driven by Theme in DayScheduleView's context
+    // but we can pass specific theme for the Scaffold if needed, or ensure DayScheduleView uses its context's theme.
+    // For simplicity, this scaffold will use the overall theme.
+    // We pass the event list, DayScheduleView will handle its own theming based on its context.
 
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => Scaffold(
-          backgroundColor: bgColor,
+          // backgroundColor will be from the theme
           appBar: AppBar(
-            backgroundColor: bgColor,
-            foregroundColor: textColor,
+            // backgroundColor and foregroundColor from theme
             elevation: 0,
             leading: IconButton(
-              icon: Icon(Icons.arrow_back, color: accentColor),
+              icon: Icon(Icons.arrow_back), // Color from IconTheme
               onPressed: () => Navigator.of(context).pop(),
             ),
             title: Text(
               'Schedule for ${DateFormat.yMMMd().format(date)}',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
+              // style will be from appBarTheme.titleTextStyle or default
             ),
           ),
           body: DayScheduleView(
             date: date,
             events: dayEvents,
-            // Example: Customize time range displayed
             // TaminTime: const TimeOfDay(hour: 7, minute: 0), 
             // TamaxTime: const TimeOfDay(hour: 22, minute: 0),
           ),
@@ -566,6 +602,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _buildResponsiveDaysGrid(BuildContext context) {
+    final theme = Theme.of(context); // Get theme for consistent colors
+    final isDark = theme.brightness == Brightness.dark;
+    final gridBorderColor = isDark ? Colors.grey.shade700.withOpacity(0.5) : Colors.grey.withOpacity(0.2);
+    final prevNextMonthTextColor = theme.disabledColor.withOpacity(0.5);
+    final todayIndicatorColor = isDark ? Colors.teal.shade300 : Colors.teal.shade600; // Accent color
+    final selectedDayBgColor = todayIndicatorColor.withOpacity(0.2);
+
+
     final firstDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
     final daysInMonth =
         DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0).day;
@@ -584,25 +628,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
               width: boxSize,
               height: boxSize,
               decoration: BoxDecoration(
-                color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.15),
+                color: theme.scaffoldBackgroundColor.withOpacity(0.5), // Softer than fully transparent
                 border: Border(
-                  top: BorderSide(
-                    color: Colors.grey.withOpacity(0.2),
-                    width: 0.5,
-                  ),
-                  right: BorderSide(
-                    color: Colors.grey.withOpacity(0.2),
-                    width: 0.5,
-                  ),
+                  top: BorderSide(color: gridBorderColor, width: 0.5,),
+                  right: BorderSide(color: gridBorderColor, width: 0.5,),
                 ),
               ),
               child: Center(
                 child: Text(
                   day.toString(),
                   style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: boxSize * 0.4,
-                    color: Theme.of(context).disabledColor.withOpacity(0.4),
+                    fontWeight: FontWeight.normal,
+                    fontSize: boxSize * 0.35,
+                    color: prevNextMonthTextColor,
                   ),
                 ),
               ),
@@ -618,16 +656,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
           _selectedDate!.year == date.year &&
           _selectedDate!.month == date.month &&
           _selectedDate!.day == date.day;
-      final hasEvent = _events.containsKey(DateTime(date.year, date.month, date.day));
+      final hasEvent = _events.containsKey(DateTime(date.year, date.month, date.day)) && 
+                       _events[DateTime(date.year, date.month, date.day)]!.isNotEmpty;
 
-      Color? numberColor;
+      Color? numberColor = theme.colorScheme.onSurface; // Default text color
+      FontWeight numberFontWeight = FontWeight.normal;
+
       if (date.year == _today.year &&
           date.month == _today.month &&
           date.day == _today.day) {
-        numberColor = Colors.blue;
+        numberColor = todayIndicatorColor;
+        numberFontWeight = FontWeight.bold;
       } else if (isSelected) {
-        numberColor = Colors.blue;
+        numberColor = todayIndicatorColor; // Or theme.colorScheme.onPrimary if selectedDayBgColor is primary
+        numberFontWeight = FontWeight.bold;
       }
+
 
       dayWidgets.add(
         LayoutBuilder(
@@ -638,28 +682,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 setState(() {
                   _selectedDate = date;
                 });
-                if (hasEvent) {
-                  _showDayEventsTimeSlotsPage(date);
-                }
+                // Always show day events/schedule page on tap, even if no events, to allow adding one.
+                _showDayEventsTimeSlotsPage(date);
               },
-              onDoubleTap: () {
+              onDoubleTap: () { // Kept for quick add, though single tap also leads to add option.
                 _addEvent(date);
               },
               child: Container(
                 width: boxSize,
                 height: boxSize,
                 decoration: BoxDecoration(
-                  color: isSelected ? Colors.blue.withOpacity(0.2) : null,
+                  color: isSelected ? selectedDayBgColor : null,
                   border: Border(
-                    top: BorderSide(
-                      color: Colors.grey.withOpacity(0.2),
-                      width: 0.5,
-                    ),
-                    right: BorderSide(
-                      color: Colors.grey.withOpacity(0.2),
-                      width: 0.5,
-                    ),
+                    top: BorderSide(color: gridBorderColor, width: 0.5,),
+                    right: BorderSide(color: gridBorderColor, width: 0.5,),
                   ),
+                  borderRadius: isSelected ? BorderRadius.circular(8) : null, // Rounded if selected
                 ),
                 child: Stack(
                   children: [
@@ -667,7 +705,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       child: Text(
                         day.toString(),
                         style: TextStyle(
-                          fontWeight: FontWeight.bold,
+                          fontWeight: numberFontWeight,
                           fontSize: boxSize * 0.4,
                           color: numberColor,
                         ),
@@ -675,9 +713,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     ),
                     if (hasEvent)
                       Positioned(
-                        right: 4,
-                        bottom: 4,
-                        child: Icon(Icons.event, size: boxSize * 0.18, color: Colors.redAccent),
+                        right: boxSize * 0.1,
+                        bottom: boxSize * 0.1,
+                        child: Icon(Icons.circle, size: boxSize * 0.15, color: theme.colorScheme.secondary.withOpacity(0.8)),
                       ),
                   ],
                 ),
@@ -698,25 +736,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
               width: boxSize,
               height: boxSize,
               decoration: BoxDecoration(
-                color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.15),
+                color: theme.scaffoldBackgroundColor.withOpacity(0.5),
                 border: Border(
-                  top: BorderSide(
-                    color: Colors.grey.withOpacity(0.2),
-                    width: 0.5,
-                  ),
-                  right: BorderSide(
-                    color: Colors.grey.withOpacity(0.2),
-                    width: 0.5,
-                  ),
+                  top: BorderSide(color: gridBorderColor, width: 0.5,),
+                  right: BorderSide(color: gridBorderColor, width: 0.5,),
                 ),
               ),
               child: Center(
                 child: Text(
                   i.toString(),
                   style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: boxSize * 0.4,
-                    color: Theme.of(context).disabledColor.withOpacity(0.4),
+                    fontWeight: FontWeight.normal,
+                    fontSize: boxSize * 0.35,
+                    color: prevNextMonthTextColor,
                   ),
                 ),
               ),
@@ -735,70 +767,87 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _buildWeekView(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final weekDayHeaderColor = theme.colorScheme.primary; // Accent color for "Mon", "Tue"
+    final dateNumberColor = theme.colorScheme.onSurface;
+    final todayDateColor = theme.colorScheme.primary; // Accent for today's date number
+    final borderColor = isDark ? Colors.grey.shade700.withOpacity(0.5) : Colors.grey.withOpacity(0.2);
+
+
     final weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     List<DateTime> weekDates = List.generate(7, (i) => _focusedWeekStart.add(Duration(days: i)));
 
     return Column(
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.chevron_left),
-              onPressed: _goToPreviousWeek,
-            ),
-            Text(
-              "${weekDates.first.day}/${weekDates.first.month} - ${weekDates.last.day}/${weekDates.last.month}",
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            IconButton(
-              icon: const Icon(Icons.chevron_right),
-              onPressed: _goToNextWeek,
-            ),
-          ],
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.chevron_left), // Color from IconTheme
+                onPressed: _goToPreviousWeek,
+              ),
+              Text(
+                "${DateFormat.MMMd().format(weekDates.first)} - ${DateFormat.MMMd().format(weekDates.last)}",
+                style: theme.textTheme.titleLarge?.copyWith(fontSize: 18),
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right), // Color from IconTheme
+                onPressed: _goToNextWeek,
+              ),
+            ],
+          ),
         ),
         Row(
           children: weekDates.map((date) {
+            final isToday = date.year == _today.year &&
+                            date.month == _today.month &&
+                            date.day == _today.day;
             return Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  border: Border(
-                    right: BorderSide(
-                      color: Colors.grey.withOpacity(0.2),
-                      width: 0.5,
+              child: InkWell(
+                onTap: () => _showDayEventsTimeSlotsPage(date), // Navigate to day view on tap
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      right: BorderSide(color: borderColor, width: 0.5,),
+                      left: date == weekDates.first ? BorderSide(color: borderColor, width: 0.5,) : BorderSide.none,
                     ),
+                    color: isToday ? theme.colorScheme.primary.withOpacity(0.1) : null,
                   ),
-                  color: date.year == _today.year &&
-                          date.month == _today.month &&
-                          date.day == _today.day
-                      ? Colors.blue.withOpacity(0.1)
-                      : null,
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      weekDays[date.weekday % 7],
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                    Text(
-                      "${date.day}/${date.month}",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: date.year == _today.year &&
-                                date.month == _today.month &&
-                                date.day == _today.day
-                            ? Colors.blue
-                            : null,
+                  child: Column(
+                    children: [
+                      Text(
+                        weekDays[date.weekday % 7].substring(0,3).toUpperCase(),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold, 
+                          fontSize: 12,
+                          color: isToday ? todayDateColor : weekDayHeaderColor.withOpacity(0.8)
+                        ),
                       ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.add, size: 18),
-                      tooltip: "Add Event",
-                      onPressed: () => _addEvent(date),
-                    ),
-                  ],
+                      const SizedBox(height: 4),
+                      Text(
+                        "${date.day}",
+                        style: TextStyle(
+                          fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
+                          fontSize: 18,
+                          color: isToday ? todayDateColor : dateNumberColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      SizedBox(
+                        height: 24, // Consistent height for the add button area
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          icon: Icon(Icons.add_circle_outline, size: 18, color: theme.iconTheme.color?.withOpacity(0.7)),
+                          tooltip: "Add Event to ${DateFormat.MMMd().format(date)}",
+                          onPressed: () => _addEvent(date),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -809,41 +858,66 @@ class _CalendarScreenState extends State<CalendarScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: weekDates.map((date) {
               final daySpecificEvents = _events[DateTime(date.year, date.month, date.day)] ?? [];
+              daySpecificEvents.sort((a,b) => (a.startTime.hour * 60 + a.startTime.minute).compareTo(b.startTime.hour * 60 + b.startTime.minute));
+
               return Expanded(
                 child: Container(
                   decoration: BoxDecoration(
                     border: Border(
-                      right: BorderSide(
-                        color: Colors.grey.withOpacity(0.2),
-                        width: 0.5,
-                      ),
+                      right: BorderSide(color: borderColor,width: 0.5,),
+                      left: date == weekDates.first ? BorderSide(color: borderColor, width: 0.5,) : BorderSide.none,
+                      top: BorderSide(color: borderColor, width: 0.5,)
                     ),
                   ),
                   child: ListView(
                     children: daySpecificEvents.isEmpty
                         ? [
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Text(
-                                "No events",
-                                style: TextStyle(
-                                  color: Theme.of(context).disabledColor,
-                                  fontStyle: FontStyle.italic,
+                            if (date.day == weekDates.first.day) // Show "No events" only once per empty list, visually less cluttered
+                              Padding(
+                                padding: const EdgeInsets.all(8.0).copyWith(top:16),
+                                child: Center(
+                                  child: Text(
+                                    "No events",
+                                    style: TextStyle(
+                                      color: theme.disabledColor,
+                                      fontStyle: FontStyle.italic,
+                                      fontSize: 12,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
                           ]
                         : daySpecificEvents
                             .map((event) => Card(
-                                  margin: const EdgeInsets.all(4),
+                                  elevation: 1.0,
+                                  color: theme.colorScheme.primary.withOpacity(isDark ? 0.3: 0.15),
+                                  margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                                   child: Padding(
                                     padding: const EdgeInsets.all(6.0),
                                     child: Column(
                                        crossAxisAlignment: CrossAxisAlignment.start,
                                        children: [
-                                         Text(event.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                         Text('${event.startTime.format(context)} - ${event.endTime.format(context)}'),
-                                         if (event.location.isNotEmpty) Text('Loc: ${event.location}', style: const TextStyle(fontSize: 12)),
+                                         Text(
+                                           event.title, 
+                                           style: TextStyle(
+                                             fontWeight: FontWeight.bold, 
+                                             fontSize: 11,
+                                             color: theme.colorScheme.onSurface
+                                           ),
+                                           maxLines: 1,
+                                           overflow: TextOverflow.ellipsis,
+                                          ),
+                                         Text(
+                                           '${event.startTime.format(context)} - ${event.endTime.format(context)}',
+                                           style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurface.withOpacity(0.8)),
+                                          ),
+                                         if (event.location.isNotEmpty) 
+                                           Text(
+                                             'Loc: ${event.location}', 
+                                             style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurface.withOpacity(0.7)),
+                                             maxLines: 1,
+                                             overflow: TextOverflow.ellipsis,
+                                            ),
                                        ],
                                 ),
                                   ),
@@ -861,49 +935,51 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // These local theme variables are now primarily for elements NOT covered by direct ThemeData spots
+    // or for quick access if needed, but ThemeData is the main driver.
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    // Use theme.colorScheme for consistency
+    final bgColor = theme.scaffoldBackgroundColor;
+    final accentColor = theme.colorScheme.primary;
+    final textColor = theme.colorScheme.onSurface;
+
+
     final weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     final monthName = [
       'January', 'February', 'March', 'April', 'May', 'June',
       'July', 'August', 'September', 'October', 'November', 'December'
     ][_focusedMonth.month - 1];
 
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final bgColor = isDark ? theme.scaffoldBackgroundColor : const Color(0xFFF2FFF5);
-    final accentColor = isDark ? Colors.greenAccent.shade700 : Colors.green.shade400;
-    final textColor = isDark ? Colors.white : Colors.black;
-
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: bgColor,
-        foregroundColor: textColor,
-        elevation: 0,
-        title: Text(_isWeekView ? 'Week View' : 'Month View', style: TextStyle(color: textColor)),
+        // backgroundColor and foregroundColor are set by AppBarTheme in MaterialApp
+        title: Text(_isWeekView ? 'Week View' : 'Month View'), // Style from AppBarTheme
         actions: [
           IconButton(
             icon: Icon(
               widget.themeMode == ThemeMode.light
                   ? Icons.dark_mode
                   : Icons.light_mode,
-              color: accentColor,
+              // color: accentColor, // Color from IconTheme
             ),
             onPressed: widget.onToggleTheme,
             tooltip: 'Toggle Theme',
           ),
           IconButton(
-            icon: Icon(_isWeekView ? Icons.calendar_month : Icons.view_week, color: accentColor),
+            icon: Icon(_isWeekView ? Icons.calendar_month : Icons.view_week), // color: accentColor), // Color from IconTheme
             onPressed: _toggleView,
             tooltip: _isWeekView ? 'Month View' : 'Week View',
           ),
         ],
       ),
-      backgroundColor: bgColor,
+      backgroundColor: bgColor, // Set by theme
       body: Column(
         children: [
-          const SizedBox(height: 16),
-          if (!_isWeekView)
+          if (!_isWeekView) // Month View Header
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
                   Column(
@@ -911,17 +987,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     children: [
                       Text(
                         monthName,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 28,
-                          color: accentColor,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          color: accentColor, 
+                          fontSize: 26,
                         ),
                       ),
                       Text(
                         _focusedMonth.year.toString(),
-                        style: TextStyle(
-                          fontSize: 16,
+                        style: theme.textTheme.titleMedium?.copyWith(
                           color: textColor.withOpacity(0.7),
+                          fontSize: 15,
                         ),
                       ),
                     ],
@@ -930,11 +1005,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   Row(
                     children: [
                       IconButton(
-                        icon: Icon(Icons.chevron_left, color: accentColor),
+                        icon: Icon(Icons.chevron_left, size: 28), // color: accentColor),
                         onPressed: _goToPreviousMonth,
                       ),
                       IconButton(
-                        icon: Icon(Icons.chevron_right, color: accentColor),
+                        icon: Icon(Icons.chevron_right, size: 28), // color: accentColor),
                         onPressed: _goToNextMonth,
                       ),
                     ],
@@ -942,22 +1017,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ],
               ),
             ),
-          if (!_isWeekView)
-            const SizedBox(height: 16),
-          if (!_isWeekView)
+          if (!_isWeekView) // Weekday Headers for Month View
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: weekDays
                     .map((name) => Expanded(
                           child: Center(
                             child: Text(
-                              name,
+                              name.substring(0,3).toUpperCase(), // "SUN", "MON"
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: accentColor,
+                                fontSize: 12,
+                                color: accentColor.withOpacity(0.8),
                               ),
                             ),
                           ),
@@ -965,19 +1038,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     .toList(),
               ),
             ),
-          if (!_isWeekView)
-            const SizedBox(height: 8),
+          // const SizedBox(height: 8) // Removed to reduce space if not needed
           Expanded(
-            child: !_isWeekView
-                ? SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Padding( // Added padding around the main content area for month/week view
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: !_isWeekView
+                  ? SingleChildScrollView( // Month view grid
                       child: _buildResponsiveDaysGrid(context),
-                    ),
-                  )
-                : _buildWeekView(context),
+                    )
+                  : _buildWeekView(context), // Week view
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8), // Small padding at the bottom
         ],
       ),
     );
