@@ -207,9 +207,12 @@ class _CalendarAppState extends State<CalendarApp> {
           primary: Colors.teal.shade600, // Light mode accent
           secondary: Colors.teal.shade400,
           surface: const Color(0xFFFAFDFB), // Background for cards, dialogs
+          surfaceVariant: Colors.teal.shade50, // For subtle containers like time picker buttons
+          surfaceContainerHighest: Colors.teal.shade100, // Slightly more prominent containers
           onPrimary: Colors.white, // Text on primary color
           onSecondary: Colors.black,
           onSurface: const Color(0xFF202124), // Main text color
+          onSurfaceVariant: Colors.teal.shade700, // Text on surfaceVariant
         ),
         appBarTheme: AppBarTheme(
           backgroundColor: const Color(0xFFFAFDFB), // Light mode app bar
@@ -235,9 +238,12 @@ class _CalendarAppState extends State<CalendarApp> {
           primary: Colors.teal.shade300, // Dark mode accent
           secondary: Colors.teal.shade200,
           surface: const Color(0xFF202124), // Background for cards, dialogs
+          surfaceVariant: Colors.grey.shade800, // For subtle containers
+          surfaceContainerHighest: Colors.grey.shade700, // Slightly more prominent
           onPrimary: Colors.black, // Text on primary color
           onSecondary: Colors.black,
           onSurface: const Color(0xFFE8EAED), // Main text color
+          onSurfaceVariant: Colors.teal.shade200, // Text on surfaceVariant
         ),
         appBarTheme: AppBarTheme(
           backgroundColor: const Color(0xFF202124), // Dark mode app bar
@@ -349,35 +355,44 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   void _addEvent(DateTime date) async {
     String title = '';
-    TimeOfDay? startTime;
-    TimeOfDay? endTime;
+    TimeOfDay? startTime; // Nullable, to be defaulted in StatefulBuilder
+    TimeOfDay? endTime;   // Nullable, to be defaulted in StatefulBuilder
     String location = '';
     String notes = '';
 
-    final currentTheme = Theme.of(context); // Use current theme from context for dialog
-    final isDialogDark = currentTheme.brightness == Brightness.dark;
-
-    // Use ColorScheme for dialog components for better theme adherence
+    final currentTheme = Theme.of(context);
     final dialogBgColor = currentTheme.colorScheme.surface;
     final dialogTextColor = currentTheme.colorScheme.onSurface;
     final dialogAccentColor = currentTheme.colorScheme.primary;
-    final dialogOnAccentColor = currentTheme.colorScheme.onPrimary;
-
+    // final dialogOnAccentColor = currentTheme.colorScheme.onPrimary; // Kept for Add button
 
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) {
-        // Wrap with a Theme to ensure dialog uses the correct theme properties
+        // Use a local variable for theme inside builder to ensure it has the context
+        final dialogTheme = Theme.of(context);
+
         return Theme(
-          data: currentTheme, 
+          data: dialogTheme, // Use the context-aware theme
           child: StatefulBuilder(
             builder: (context, setState) {
+              // Default times if null
+              if (startTime == null) {
+                startTime = TimeOfDay.now();
+                if (endTime == null) { // Only default endTime if it wasn't already set/picked
+                  final now = DateTime.now();
+                  final defaultEndTime = DateTime(now.year, now.month, now.day, startTime!.hour, startTime!.minute).add(const Duration(hours: 1));
+                  endTime = TimeOfDay.fromDateTime(defaultEndTime);
+                }
+              }
+
               return AlertDialog(
                 backgroundColor: dialogBgColor,
                 title: Text('Add Event', style: TextStyle(color: dialogTextColor)),
                 content: SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       TextField(
                         decoration: InputDecoration(
@@ -393,85 +408,81 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         style: TextStyle(color: dialogTextColor),
                         onChanged: (value) => title = value,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text('Start Time:', style: TextStyle(fontWeight: FontWeight.bold, color: dialogTextColor)),
-                          const SizedBox(width: 12),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: dialogAccentColor,
-                              foregroundColor: dialogOnAccentColor,
-                            ),
-                            onPressed: () async {
-                              final picked = await showTimePicker(
-                                context: context,
-                                initialTime: startTime ?? TimeOfDay.now(),
-                                builder: (context, child) {
-                                  // TimePicker already uses AlertDialog's theme context
-                                  return child!;
-                                },
-                              );
-                              if (picked != null) {
-                                setState(() {
-                                  startTime = picked;
-                                });
-                              }
-                            },
-                            child: const Text('Select'),
-                          ),
-                          if (startTime != null)
-                            Padding(
-                              padding: const EdgeInsets.only(left: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: dialogTheme.colorScheme.surfaceVariant, // Subtle background
+                                foregroundColor: dialogAccentColor, // Accent color for text
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(0.0), // Perfectly square
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                elevation: 0, // Flat appearance
+                                side: BorderSide(color: dialogAccentColor.withOpacity(0.5)) // Optional: subtle border
+                              ),
+                              onPressed: () async {
+                                final picked = await showTimePicker(
+                                  context: context,
+                                  initialTime: startTime ?? TimeOfDay.now(), // Fallback just in case
+                                );
+                                if (picked != null) {
+                                  setState(() {
+                                    startTime = picked;
+                                    // Optional: Adjust end time if start time changes and end time was default or is now before start time
+                                    if (endTime != null && (picked.hour * 60 + picked.minute) >= (endTime!.hour * 60 + endTime!.minute)){
+                                       final newEndTime = DateTime(0,0,0, picked.hour, picked.minute).add(const Duration(hours:1));
+                                       endTime = TimeOfDay.fromDateTime(newEndTime);
+                                    }
+                                  });
+                                }
+                              },
                               child: Text(
+                                // startTime is guaranteed to be non-null here due to defaulting logic
                                 startTime!.format(context),
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: dialogTextColor,
-                                  fontSize: 16,
-                                ),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.0)
                               ),
                             ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Text('End Time:', style: TextStyle(fontWeight: FontWeight.bold, color: dialogTextColor)),
-                          const SizedBox(width: 12),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: dialogAccentColor,
-                              foregroundColor: dialogOnAccentColor,
-                            ),
-                            onPressed: () async {
-                              final picked = await showTimePicker(
-                                context: context,
-                                initialTime: endTime ?? (startTime ?? TimeOfDay.now()),
-                                builder: (context, child) {
-                                  return child!;
-                                },
-                              );
-                              if (picked != null) {
-                                setState(() {
-                                  endTime = picked;
-                                });
-                              }
-                            },
-                            child: const Text('Select'),
                           ),
-                          if (endTime != null)
-                            Padding(
-                              padding: const EdgeInsets.only(left: 12),
-                              child: Text(
-                                endTime!.format(context),
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: dialogTextColor,
-                                  fontSize: 16,
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                            child: Icon(Icons.arrow_forward, color: dialogTextColor.withOpacity(0.7)),
+                          ),
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: dialogTheme.colorScheme.surfaceVariant, // Subtle background
+                                foregroundColor: dialogAccentColor, // Accent color for text
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(0.0), // Perfectly square
                                 ),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                elevation: 0, // Flat appearance
+                                side: BorderSide(color: dialogAccentColor.withOpacity(0.5)) // Optional: subtle border
+                              ),
+                              onPressed: () async {
+                                final picked = await showTimePicker(
+                                  context: context,
+                                  initialTime: endTime ?? startTime ?? TimeOfDay.now(), // Fallback
+                                );
+                                if (picked != null) {
+                                  setState(() {
+                                    endTime = picked;
+                                  });
+                                }
+                              },
+                              child: Text(
+                                // endTime is guaranteed to be non-null here due to defaulting logic
+                                endTime!.format(context),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.0)
                               ),
                             ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -479,7 +490,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         decoration: InputDecoration(
                           labelText: 'Location',
                           labelStyle: TextStyle(color: dialogTextColor.withOpacity(0.7)),
-                           enabledBorder: UnderlineInputBorder(
+                          enabledBorder: UnderlineInputBorder(
                             borderSide: BorderSide(color: dialogAccentColor),
                           ),
                           focusedBorder: UnderlineInputBorder(
@@ -494,7 +505,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         decoration: InputDecoration(
                           labelText: 'Notes',
                           labelStyle: TextStyle(color: dialogTextColor.withOpacity(0.7)),
-                           enabledBorder: UnderlineInputBorder(
+                          enabledBorder: UnderlineInputBorder(
                             borderSide: BorderSide(color: dialogAccentColor),
                           ),
                           focusedBorder: UnderlineInputBorder(
@@ -515,9 +526,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: dialogAccentColor,
-                      foregroundColor: dialogOnAccentColor,
+                      foregroundColor: dialogTheme.colorScheme.onPrimary, // Use onPrimary for text on accent button
                     ),
                     onPressed: () {
+                      if (title.trim().isEmpty || startTime == null || endTime == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Title, start time, and end time are required.')),
+                        );
+                        return;
+                      }
+                      if ((endTime!.hour * 60 + endTime!.minute) <= (startTime!.hour * 60 + startTime!.minute)) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('End time must be after start time.')),
+                        );
+                        return;
+                      }
                       Navigator.pop(context, {
                         'title': title,
                         'startHour': startTime?.hour,
@@ -538,10 +561,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
       },
     );
 
-    if (result != null && (result['title'] as String).trim().isNotEmpty) {
-      if (result['startHour'] != null && result['startMinute'] != null &&
-          result['endHour'] != null && result['endMinute'] != null) {
-        
+    if (result != null && result['title'] != null && (result['title'] as String).trim().isNotEmpty) {
+      // startTime and endTime null checks are implicitly handled by the Add button's validation
         final newEvent = Event(
           title: result['title'] as String,
           startTime: TimeOfDay(hour: result['startHour'] as int, minute: result['startMinute'] as int),
@@ -553,41 +574,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
         setState(() {
           final key = DateTime(date.year, date.month, date.day);
           _events.putIfAbsent(key, () => []).add(newEvent);
-          _selectedDate = key;
+          _selectedDate = key; // Optionally select the date when an event is added
         });
-
-      } else {
-        if (mounted) {
-             ScaffoldMessenger.of(context).showSnackBar(
-               const SnackBar(content: Text('Event title and valid start/end times are required.')),
-             );
-        }
-      }
     }
   }
 
   void _showDayEventsTimeSlotsPage(DateTime date) {
     final dayEvents = _events[DateTime(date.year, date.month, date.day)] ?? [];
 
-    // Colors are now primarily driven by Theme in DayScheduleView's context
-    // but we can pass specific theme for the Scaffold if needed, or ensure DayScheduleView uses its context's theme.
-    // For simplicity, this scaffold will use the overall theme.
-    // We pass the event list, DayScheduleView will handle its own theming based on its context.
-
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => Scaffold(
-          // backgroundColor will be from the theme
           appBar: AppBar(
-            // backgroundColor and foregroundColor from theme
             elevation: 0,
             leading: IconButton(
-              icon: Icon(Icons.arrow_back), // Color from IconTheme
+              icon: Icon(Icons.arrow_back), 
               onPressed: () => Navigator.of(context).pop(),
             ),
             title: Text(
               'Schedule for ${DateFormat.yMMMd().format(date)}',
-              // style will be from appBarTheme.titleTextStyle or default
             ),
           ),
           body: DayScheduleView(
@@ -602,11 +607,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _buildResponsiveDaysGrid(BuildContext context) {
-    final theme = Theme.of(context); // Get theme for consistent colors
+    final theme = Theme.of(context); 
     final isDark = theme.brightness == Brightness.dark;
     final gridBorderColor = isDark ? Colors.grey.shade700.withOpacity(0.5) : Colors.grey.withOpacity(0.2);
     final prevNextMonthTextColor = theme.disabledColor.withOpacity(0.5);
-    final todayIndicatorColor = isDark ? Colors.teal.shade300 : Colors.teal.shade600; // Accent color
+    final todayIndicatorColor = isDark ? Colors.teal.shade300 : Colors.teal.shade600; 
     final selectedDayBgColor = todayIndicatorColor.withOpacity(0.2);
 
 
@@ -628,7 +633,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               width: boxSize,
               height: boxSize,
               decoration: BoxDecoration(
-                color: theme.scaffoldBackgroundColor.withOpacity(0.5), // Softer than fully transparent
+                color: theme.scaffoldBackgroundColor.withOpacity(0.5), 
                 border: Border(
                   top: BorderSide(color: gridBorderColor, width: 0.5,),
                   right: BorderSide(color: gridBorderColor, width: 0.5,),
@@ -659,7 +664,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       final hasEvent = _events.containsKey(DateTime(date.year, date.month, date.day)) && 
                        _events[DateTime(date.year, date.month, date.day)]!.isNotEmpty;
 
-      Color? numberColor = theme.colorScheme.onSurface; // Default text color
+      Color? numberColor = theme.colorScheme.onSurface; 
       FontWeight numberFontWeight = FontWeight.normal;
 
       if (date.year == _today.year &&
@@ -668,7 +673,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         numberColor = todayIndicatorColor;
         numberFontWeight = FontWeight.bold;
       } else if (isSelected) {
-        numberColor = todayIndicatorColor; // Or theme.colorScheme.onPrimary if selectedDayBgColor is primary
+        numberColor = todayIndicatorColor; 
         numberFontWeight = FontWeight.bold;
       }
 
@@ -682,10 +687,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 setState(() {
                   _selectedDate = date;
                 });
-                // Always show day events/schedule page on tap, even if no events, to allow adding one.
                 _showDayEventsTimeSlotsPage(date);
               },
-              onDoubleTap: () { // Kept for quick add, though single tap also leads to add option.
+              onDoubleTap: () { 
                 _addEvent(date);
               },
               child: Container(
@@ -697,7 +701,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     top: BorderSide(color: gridBorderColor, width: 0.5,),
                     right: BorderSide(color: gridBorderColor, width: 0.5,),
                   ),
-                  borderRadius: isSelected ? BorderRadius.circular(8) : null, // Rounded if selected
+                  borderRadius: isSelected ? BorderRadius.circular(8) : null, 
                 ),
                 child: Stack(
                   children: [
@@ -769,9 +773,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Widget _buildWeekView(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final weekDayHeaderColor = theme.colorScheme.primary; // Accent color for "Mon", "Tue"
+    final weekDayHeaderColor = theme.colorScheme.primary; 
     final dateNumberColor = theme.colorScheme.onSurface;
-    final todayDateColor = theme.colorScheme.primary; // Accent for today's date number
+    final todayDateColor = theme.colorScheme.primary; 
     final borderColor = isDark ? Colors.grey.shade700.withOpacity(0.5) : Colors.grey.withOpacity(0.2);
 
 
@@ -786,7 +790,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               IconButton(
-                icon: const Icon(Icons.chevron_left), // Color from IconTheme
+                icon: const Icon(Icons.chevron_left), 
                 onPressed: _goToPreviousWeek,
               ),
               Text(
@@ -794,7 +798,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 style: theme.textTheme.titleLarge?.copyWith(fontSize: 18),
               ),
               IconButton(
-                icon: const Icon(Icons.chevron_right), // Color from IconTheme
+                icon: const Icon(Icons.chevron_right), 
                 onPressed: _goToNextWeek,
               ),
             ],
@@ -807,7 +811,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             date.day == _today.day;
             return Expanded(
               child: InkWell(
-                onTap: () => _showDayEventsTimeSlotsPage(date), // Navigate to day view on tap
+                onTap: () => _showDayEventsTimeSlotsPage(date), 
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   decoration: BoxDecoration(
@@ -838,7 +842,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
                       const SizedBox(height: 4),
                       SizedBox(
-                        height: 24, // Consistent height for the add button area
+                        height: 24, 
                         child: IconButton(
                           padding: EdgeInsets.zero,
                           icon: Icon(Icons.add_circle_outline, size: 18, color: theme.iconTheme.color?.withOpacity(0.7)),
@@ -872,7 +876,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   child: ListView(
                     children: daySpecificEvents.isEmpty
                         ? [
-                            if (date.day == weekDates.first.day) // Show "No events" only once per empty list, visually less cluttered
+                            if (date.day == weekDates.first.day) 
                               Padding(
                                 padding: const EdgeInsets.all(8.0).copyWith(top:16),
                                 child: Center(
@@ -935,12 +939,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // These local theme variables are now primarily for elements NOT covered by direct ThemeData spots
-    // or for quick access if needed, but ThemeData is the main driver.
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     
-    // Use theme.colorScheme for consistency
     final bgColor = theme.scaffoldBackgroundColor;
     final accentColor = theme.colorScheme.primary;
     final textColor = theme.colorScheme.onSurface;
@@ -954,30 +955,28 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        // backgroundColor and foregroundColor are set by AppBarTheme in MaterialApp
-        title: Text(_isWeekView ? 'Week View' : 'Month View'), // Style from AppBarTheme
+        title: Text(_isWeekView ? 'Week View' : 'Month View'), 
         actions: [
           IconButton(
             icon: Icon(
               widget.themeMode == ThemeMode.light
                   ? Icons.dark_mode
                   : Icons.light_mode,
-              // color: accentColor, // Color from IconTheme
             ),
             onPressed: widget.onToggleTheme,
             tooltip: 'Toggle Theme',
           ),
           IconButton(
-            icon: Icon(_isWeekView ? Icons.calendar_month : Icons.view_week), // color: accentColor), // Color from IconTheme
+            icon: Icon(_isWeekView ? Icons.calendar_month : Icons.view_week), 
             onPressed: _toggleView,
             tooltip: _isWeekView ? 'Month View' : 'Week View',
           ),
         ],
       ),
-      backgroundColor: bgColor, // Set by theme
+      backgroundColor: bgColor, 
       body: Column(
         children: [
-          if (!_isWeekView) // Month View Header
+          if (!_isWeekView) 
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
@@ -1005,11 +1004,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   Row(
                     children: [
                       IconButton(
-                        icon: Icon(Icons.chevron_left, size: 28), // color: accentColor),
+                        icon: Icon(Icons.chevron_left, size: 28), 
                         onPressed: _goToPreviousMonth,
                       ),
                       IconButton(
-                        icon: Icon(Icons.chevron_right, size: 28), // color: accentColor),
+                        icon: Icon(Icons.chevron_right, size: 28), 
                         onPressed: _goToNextMonth,
                       ),
                     ],
@@ -1017,7 +1016,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ],
               ),
             ),
-          if (!_isWeekView) // Weekday Headers for Month View
+          if (!_isWeekView) 
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               child: Row(
@@ -1026,7 +1025,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     .map((name) => Expanded(
                           child: Center(
                             child: Text(
-                              name.substring(0,3).toUpperCase(), // "SUN", "MON"
+                              name.substring(0,3).toUpperCase(), 
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12,
@@ -1038,18 +1037,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     .toList(),
               ),
             ),
-          // const SizedBox(height: 8) // Removed to reduce space if not needed
           Expanded(
-            child: Padding( // Added padding around the main content area for month/week view
+            child: Padding( 
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
               child: !_isWeekView
-                  ? SingleChildScrollView( // Month view grid
+                  ? SingleChildScrollView( 
                       child: _buildResponsiveDaysGrid(context),
                     )
-                  : _buildWeekView(context), // Week view
+                  : _buildWeekView(context), 
             ),
           ),
-          const SizedBox(height: 8), // Small padding at the bottom
+          const SizedBox(height: 8), 
         ],
       ),
     );
