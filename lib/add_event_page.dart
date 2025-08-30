@@ -15,6 +15,7 @@ class AddEventPage extends StatefulWidget {
 class _AddEventPageState extends State<AddEventPage> {
   final _formKey = GlobalKey<FormState>();
   String _title = '';
+  late DateTime _selectedDate;
   TimeOfDay _startTime = TimeOfDay.now();
   TimeOfDay _endTime = TimeOfDay.fromDateTime(DateTime.now().add(const Duration(hours: 1)));
   String _location = '';
@@ -23,11 +24,26 @@ class _AddEventPageState extends State<AddEventPage> {
   @override
   void initState() {
     super.initState();
+    _selectedDate = widget.date;
     // Adjust default end time if start time is late in the day
     if (_startTime.hour == 23) {
       _endTime = const TimeOfDay(hour: 23, minute: 59);
     } else {
       _endTime = TimeOfDay(hour: _startTime.hour + 1, minute: _startTime.minute);
+    }
+  }
+
+  Future<void> _pickDate() async {
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+    );
+    if (pickedDate != null && pickedDate != _selectedDate) {
+      setState(() {
+        _selectedDate = pickedDate;
+      });
     }
   }
 
@@ -75,6 +91,7 @@ class _AddEventPageState extends State<AddEventPage> {
 
       final newEvent = Event(
         title: _title,
+        date: _selectedDate, // Use the selected date
         startTime: _startTime,
         endTime: _endTime,
         location: _location,
@@ -152,9 +169,11 @@ class _AddEventPageState extends State<AddEventPage> {
               ListTile(
                 leading: Icon(Icons.calendar_today, color: theme.colorScheme.primary.withOpacity(0.8)),
                 title: Text(
-                  DateFormat.yMMMMd().format(widget.date),
+                  DateFormat.yMMMMd().format(_selectedDate),
                   style: TextStyle(fontSize: 16, color: theme.colorScheme.onSurface),
                 ),
+                trailing: Icon(Icons.edit_calendar_outlined, color: theme.colorScheme.primary),
+                onTap: _pickDate, // Allow tapping to change date
                 tileColor: theme.colorScheme.surfaceVariant.withOpacity(0.3),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
               ),
