@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // For date formatting
+import './add_event_page.dart'; // Import the new AddEventPage
 
 // Event class from new.dart
 class Event {
@@ -363,228 +364,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   void _addEvent(DateTime date) async {
-    String title = '';
-    TimeOfDay? startTime; // Nullable, to be defaulted in StatefulBuilder
-    TimeOfDay? endTime;   // Nullable, to be defaulted in StatefulBuilder
-    String location = '';
-    String notes = '';
-
-    final currentTheme = Theme.of(context);
-    final dialogBgColor = currentTheme.colorScheme.surface;
-    final dialogTextColor = currentTheme.colorScheme.onSurface;
-    final dialogAccentColor = currentTheme.colorScheme.primary;
-    // final dialogOnAccentColor = currentTheme.colorScheme.onPrimary; // Kept for Add button
-
-    final result = await showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (context) {
-        // Use a local variable for theme inside builder to ensure it has the context
-        final dialogTheme = Theme.of(context);
-
-        return Theme(
-          data: dialogTheme, // Use the context-aware theme
-          child: StatefulBuilder(
-            builder: (context, setState) {
-              // Default times if null
-              if (startTime == null) {
-                startTime = TimeOfDay.now();
-                if (endTime == null) { // Only default endTime if it wasn't already set/picked
-                  final now = DateTime.now();
-                  final defaultEndTime = DateTime(now.year, now.month, now.day, startTime!.hour, startTime!.minute).add(const Duration(hours: 1));
-                  endTime = TimeOfDay.fromDateTime(defaultEndTime);
-                }
-              }
-
-              return AlertDialog(
-                backgroundColor: dialogBgColor,
-                title: Text('Add Event', style: TextStyle(color: dialogTextColor)),
-                content: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextField(
-                        decoration: InputDecoration(
-                          labelText: 'Title',
-                          labelStyle: TextStyle(color: dialogTextColor.withOpacity(0.7)),
-                          enabledBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(color: dialogAccentColor),
-                          ),
-                          focusedBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(color: dialogAccentColor, width: 2),
-                          ),
-                        ),
-                        style: TextStyle(color: dialogTextColor),
-                        onChanged: (value) => title = value,
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: dialogTheme.colorScheme.surfaceVariant, // Subtle background
-                                foregroundColor: dialogAccentColor, // Accent color for text
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(0.0), // Perfectly square
-                                ),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                elevation: 0, // Flat appearance
-                                side: BorderSide(color: dialogAccentColor.withOpacity(0.5)) // Optional: subtle border
-                              ),
-                              onPressed: () async {
-                                final picked = await showTimePicker(
-                                  context: context,
-                                  initialTime: startTime ?? TimeOfDay.now(), // Fallback just in case
-                                );
-                                if (picked != null) {
-                                  setState(() {
-                                    startTime = picked;
-                                    // Optional: Adjust end time if start time changes and end time was default or is now before start time
-                                    if (endTime != null && (picked.hour * 60 + picked.minute) >= (endTime!.hour * 60 + endTime!.minute)){
-                                       final newEndTime = DateTime(0,0,0, picked.hour, picked.minute).add(const Duration(hours:1));
-                                       endTime = TimeOfDay.fromDateTime(newEndTime);
-                                    }
-                                  });
-                                }
-                              },
-                              child: Text(
-                                // startTime is guaranteed to be non-null here due to defaulting logic
-                                startTime!.format(context),
-                                textAlign: TextAlign.center,
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.0)
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                            child: Icon(Icons.arrow_forward, color: dialogTextColor.withOpacity(0.7)),
-                          ),
-                          Expanded(
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: dialogTheme.colorScheme.surfaceVariant, // Subtle background
-                                foregroundColor: dialogAccentColor, // Accent color for text
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(0.0), // Perfectly square
-                                ),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                elevation: 0, // Flat appearance
-                                side: BorderSide(color: dialogAccentColor.withOpacity(0.5)) // Optional: subtle border
-                              ),
-                              onPressed: () async {
-                                final picked = await showTimePicker(
-                                  context: context,
-                                  initialTime: endTime ?? startTime ?? TimeOfDay.now(), // Fallback
-                                );
-                                if (picked != null) {
-                                  setState(() {
-                                    endTime = picked;
-                                  });
-                                }
-                              },
-                              child: Text(
-                                // endTime is guaranteed to be non-null here due to defaulting logic
-                                endTime!.format(context),
-                                textAlign: TextAlign.center,
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.0)
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        decoration: InputDecoration(
-                          labelText: 'Location',
-                          labelStyle: TextStyle(color: dialogTextColor.withOpacity(0.7)),
-                          enabledBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(color: dialogAccentColor),
-                          ),
-                          focusedBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(color: dialogAccentColor, width: 2),
-                          ),
-                        ),
-                        style: TextStyle(color: dialogTextColor),
-                        onChanged: (value) => location = value,
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        decoration: InputDecoration(
-                          labelText: 'Notes',
-                          labelStyle: TextStyle(color: dialogTextColor.withOpacity(0.7)),
-                          enabledBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(color: dialogAccentColor),
-                          ),
-                          focusedBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(color: dialogAccentColor, width: 2),
-                          ),
-                        ),
-                        style: TextStyle(color: dialogTextColor),
-                        onChanged: (value) => notes = value,
-                      ),
-                    ],
-                  ),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text('Cancel', style: TextStyle(color: dialogAccentColor)),
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: dialogAccentColor,
-                      foregroundColor: dialogTheme.colorScheme.onPrimary, // Use onPrimary for text on accent button
-                    ),
-                    onPressed: () {
-                      if (title.trim().isEmpty || startTime == null || endTime == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Title, start time, and end time are required.')),
-                        );
-                        return;
-                      }
-                      if ((endTime!.hour * 60 + endTime!.minute) <= (startTime!.hour * 60 + startTime!.minute)) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('End time must be after start time.')),
-                        );
-                        return;
-                      }
-                      Navigator.pop(context, {
-                        'title': title,
-                        'startHour': startTime?.hour,
-                        'startMinute': startTime?.minute,
-                        'endHour': endTime?.hour,
-                        'endMinute': endTime?.minute,
-                        'location': location,
-                        'notes': notes,
-                      });
-                    },
-                    child: const Text('Add'),
-                  ),
-                ],
-              );
-            },
-          ),
-        );
-      },
+    final result = await Navigator.of(context).push<Event>(
+      MaterialPageRoute(
+        builder: (context) => AddEventPage(date: date),
+      ),
     );
 
-    if (result != null && result['title'] != null && (result['title'] as String).trim().isNotEmpty) {
-      // startTime and endTime null checks are implicitly handled by the Add button's validation
-        final newEvent = Event(
-          title: result['title'] as String,
-          startTime: TimeOfDay(hour: result['startHour'] as int, minute: result['startMinute'] as int),
-          endTime: TimeOfDay(hour: result['endHour'] as int, minute: result['endMinute'] as int),
-          location: result['location'] as String? ?? '',
-          notes: result['notes'] as String? ?? '',
-        );
-
-        setState(() {
-          final key = DateTime(date.year, date.month, date.day);
-          _events.putIfAbsent(key, () => []).add(newEvent);
-          _selectedDate = key; // Optionally select the date when an event is added
-        });
+    if (result != null) {
+      setState(() {
+        final key = DateTime(date.year, date.month, date.day);
+        _events.putIfAbsent(key, () => []).add(result);
+        _selectedDate = key; // Optionally select the date when an event is added
+      });
     }
   }
 
@@ -792,12 +583,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
           width: _timeLabelWidth,
           height: _hourHeight,
           child: Container(
-            alignment: Alignment.topCenter, // Aligns text to the top of its hour slot
-            padding: const EdgeInsets.only(top: 4.0), // Small padding from the top line
+            alignment: Alignment.topRight, // Aligns text to the top-right of its hour slot
             child: Text(
-              DateFormat('h a').format(DateTime(2000, 1, 1, hour)), // Using a dummy date for formatting
+              DateFormat('HH:mm').format(DateTime(2000, 1, 1, hour)), // Using a dummy date for 24-hour formatting
               style: TextStyle(
-                fontSize: 10,
+                fontSize: 12,
                 color: timeLabelColor,
               ),
             ),
