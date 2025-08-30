@@ -286,9 +286,16 @@ class CalendarScreen extends StatefulWidget {
 }
 
 class _CalendarScreenState extends State<CalendarScreen> {
+  static const int _initialPageIndex = 10000; // For "infinite" scrolling
+  static const Duration _pageScrollDuration = Duration(milliseconds: 300);
+  static const Curve _pageScrollCurve = Curves.easeInOut;
+
+  late PageController _monthPageController;
+  late PageController _weekPageController;
+
   DateTime _focusedMonth = DateTime(DateTime.now().year, DateTime.now().month);
   DateTime? _selectedDate;
-  final Map<DateTime, List<Event>> _events = {}; // Changed to List<Event>
+  final Map<DateTime, List<Event>> _events = {};
   final DateTime _today = DateTime(
     DateTime.now().year,
     DateTime.now().month,
@@ -302,12 +309,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     DateTime.now().day - (DateTime.now().weekday % 7),
   );
 
-  // Constants for Week View Layout
   final double _hourHeight = 50.0;
-  final int _minHour = 0; // 12 AM
-  final int _maxHour = 23; // 11 PM
+  final int _minHour = 0;
+  final int _maxHour = 23;
   final double _timeLabelWidth = 50.0;
-
 
   @override
   void initState() {
@@ -316,49 +321,86 @@ class _CalendarScreenState extends State<CalendarScreen> {
       _selectedDate = _today;
     }
     _focusedWeekStart = _today.subtract(Duration(days: _today.weekday % 7));
+
+    _monthPageController = PageController(initialPage: _calculateMonthPageIndex(_focusedMonth));
+    _weekPageController = PageController(initialPage: _calculateWeekPageIndex(_focusedWeekStart));
   }
 
+  @override
+  void dispose() {
+    _monthPageController.dispose();
+    _weekPageController.dispose();
+    super.dispose();
+  }
+
+  // --- PageView Indexing Helper Methods ---
+  int _calculateMonthPageIndex(DateTime month) {
+    // Calculates a page index based on the difference from a reference start (e.g., _today)
+    // This allows for a large number of pages before and after the initial month.
+    return _initialPageIndex + (month.year - _today.year) * 12 + (month.month - _today.month);
+  }
+
+  DateTime _getDateFromMonthPageIndex(int pageIndex) {
+    final monthOffset = pageIndex - _initialPageIndex;
+    return DateTime(_today.year, _today.month + monthOffset, 1);
+  }
+
+  int _calculateWeekPageIndex(DateTime weekStart) {
+    // Calculates page index based on week difference from _today's week start
+    DateTime todayWeekStart = _today.subtract(Duration(days: _today.weekday % 7));
+    return _initialPageIndex + (weekStart.difference(todayWeekStart).inDays ~/ 7);
+  }
+
+  DateTime _getDateFromWeekPageIndex(int pageIndex) {
+    final weekOffset = pageIndex - _initialPageIndex;
+    DateTime todayWeekStart = _today.subtract(Duration(days: _today.weekday % 7));
+    return todayWeekStart.add(Duration(days: weekOffset * 7));
+  }
+
+  // --- Navigation Methods ---
   void _goToPreviousMonth() {
-    setState(() {
-      _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1);
-      if (_focusedMonth.year == _today.year && _focusedMonth.month == _today.month) {
-        _selectedDate = _today;
-      } else {
-        _selectedDate = null;
-      }
-    });
+    if (_monthPageController.hasClients) {
+        _monthPageController.previousPage(duration: _pageScrollDuration, curve: _pageScrollCurve);
+    }
   }
 
   void _goToNextMonth() {
-    setState(() {
-      _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1);
-      if (_focusedMonth.year == _today.year && _focusedMonth.month == _today.month) {
-        _selectedDate = _today;
-      } else {
-        _selectedDate = null;
-      }
-    });
+    if (_monthPageController.hasClients) {
+        _monthPageController.nextPage(duration: _pageScrollDuration, curve: _pageScrollCurve);
+    }
   }
 
   void _goToPreviousWeek() {
-    setState(() {
-      _focusedWeekStart = _focusedWeekStart.subtract(const Duration(days: 7));
-    });
+    if (_weekPageController.hasClients) {
+      _weekPageController.previousPage(duration: _pageScrollDuration, curve: _pageScrollCurve);
+    }
   }
 
   void _goToNextWeek() {
-    setState(() {
-      _focusedWeekStart = _focusedWeekStart.add(const Duration(days: 7));
-    });
+    if (_weekPageController.hasClients) {
+      _weekPageController.nextPage(duration: _pageScrollDuration, curve: _pageScrollCurve);
+    }
   }
 
   void _toggleView() {
     setState(() {
       _isWeekView = !_isWeekView;
       if (_isWeekView) {
+        // When switching to week view, focus on the week of the currently selected date or today
         _focusedWeekStart = _selectedDate != null
             ? _selectedDate!.subtract(Duration(days: _selectedDate!.weekday % 7))
             : _today.subtract(Duration(days: _today.weekday % 7));
+        if (_weekPageController.hasClients) {
+            _weekPageController.jumpToPage(_calculateWeekPageIndex(_focusedWeekStart));
+        }
+      } else {
+        // When switching to month view, focus on the month of the currently selected date or today
+        _focusedMonth = _selectedDate != null
+            ? DateTime(_selectedDate!.year, _selectedDate!.month)
+            : DateTime(_today.year, _today.month);
+        if (_monthPageController.hasClients) {
+            _monthPageController.jumpToPage(_calculateMonthPageIndex(_focusedMonth));
+        }
       }
     });
   }
@@ -374,14 +416,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
       setState(() {
         final key = DateTime(date.year, date.month, date.day);
         _events.putIfAbsent(key, () => []).add(result);
-        _selectedDate = key; // Optionally select the date when an event is added
+        _selectedDate = key;
       });
     }
   }
 
   void _showDayEventsTimeSlotsPage(DateTime date) {
     final dayEvents = _events[DateTime(date.year, date.month, date.day)] ?? [];
-
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => Scaffold(
@@ -398,15 +439,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
           body: DayScheduleView(
             date: date,
             events: dayEvents,
-            // TaminTime: const TimeOfDay(hour: 7, minute: 0),
-            // TamaxTime: const TimeOfDay(hour: 22, minute: 0),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildResponsiveDaysGrid(BuildContext context) {
+  Widget _buildMonthPageWidget(BuildContext context, DateTime monthToDisplay) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final gridBorderColor = isDark ? Colors.grey.shade700.withOpacity(0.0) : Colors.grey.withOpacity(0.0);
@@ -414,14 +453,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final todayIndicatorColor = isDark ? Colors.teal.shade300 : Colors.teal.shade600;
     final selectedDayBgColor = todayIndicatorColor.withOpacity(0.2);
 
-
-    final firstDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
-    final daysInMonth =
-        DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0).day;
+    final firstDayOfMonth = DateTime(monthToDisplay.year, monthToDisplay.month, 1);
+    final daysInMonth = DateTime(monthToDisplay.year, monthToDisplay.month + 1, 0).day;
     final weekdayOffset = firstDayOfMonth.weekday % 7;
     List<Widget> dayWidgets = [];
 
-    final prevMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1);
+    final prevMonth = DateTime(monthToDisplay.year, monthToDisplay.month - 1);
     final prevMonthDays = DateTime(prevMonth.year, prevMonth.month + 1, 0).day;
     for (int i = 0; i < weekdayOffset; i++) {
       final day = prevMonthDays - weekdayOffset + i + 1;
@@ -456,7 +493,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
 
     for (int day = 1; day <= daysInMonth; day++) {
-      final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+      final date = DateTime(monthToDisplay.year, monthToDisplay.month, day);
       final isSelected = _selectedDate != null &&
           _selectedDate!.year == date.year &&
           _selectedDate!.month == date.month &&
@@ -477,7 +514,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
         numberFontWeight = FontWeight.bold;
       }
 
-
       dayWidgets.add(
         LayoutBuilder(
           builder: (context, constraints) {
@@ -486,6 +522,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
               onTap: () {
                 setState(() {
                   _selectedDate = date;
+                  // Update _focusedMonth as well if the selected date changes the month context
+                  // This is primarily handled by PageView's onPageChanged now
                 });
                 _showDayEventsTimeSlotsPage(date);
               },
@@ -565,7 +603,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return GridView.count(
       crossAxisCount: 7,
       shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      physics: const NeverScrollableScrollPhysics(), // Important for PageView
       children: dayWidgets,
     );
   }
@@ -583,9 +621,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
           width: _timeLabelWidth,
           height: _hourHeight,
           child: Container(
-            alignment: Alignment.topRight, // Aligns text to the top-right of its hour slot
+            alignment: Alignment.topRight,
             child: Text(
-              DateFormat('HH:mm').format(DateTime(2000, 1, 1, hour)), // Using a dummy date for 24-hour formatting
+              DateFormat('HH:mm').format(DateTime(2000, 1, 1, hour)),
               style: TextStyle(
                 fontSize: 12,
                 color: timeLabelColor,
@@ -602,7 +640,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final theme = Theme.of(context);
     List<Widget> stackChildren = [];
 
-    // Add hour lines
     for (int hour = _minHour; hour <= _maxHour; hour++) {
       stackChildren.add(
         Positioned(
@@ -610,7 +647,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           left: 0,
           width: columnWidth,
           child: Divider(
-            height: 1, // Visual height of the divider line
+            height: 1,
             thickness: 0.5,
             color: theme.dividerColor.withOpacity(0.5),
           ),
@@ -618,7 +655,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       );
     }
 
-    // Add events
     for (var event in events) {
       final startMinutes = event.startTime.hour * 60 + event.startTime.minute;
       final endMinutes = event.endTime.hour * 60 + event.endTime.minute;
@@ -628,25 +664,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
       final eventDurationInMinutes = endMinutes - startMinutes;
       double eventHeight = (eventDurationInMinutes / 60.0) * _hourHeight;
 
-      if (eventHeight < _hourHeight / 3) { // Minimum height for visibility
+      if (eventHeight < _hourHeight / 3) {
           eventHeight = _hourHeight / 3;
       }
-      if (topPosition < 0) continue; // Skip events that start before minHour (if any)
-      if (topPosition + eventHeight > (_maxHour - _minHour + 1) * _hourHeight) { // Trim events that go beyond maxHour
+      if (topPosition < 0) continue;
+      if (topPosition + eventHeight > (_maxHour - _minHour + 1) * _hourHeight) {
           eventHeight = ((_maxHour - _minHour + 1) * _hourHeight) - topPosition;
       }
       if (eventHeight <=0) continue;
 
-
       stackChildren.add(
         Positioned(
           top: topPosition,
-          left: 2.0, // Small padding from the left edge of the column
-          width: columnWidth - 4.0, // Account for padding on both sides
+          left: 2.0,
+          width: columnWidth - 4.0,
           height: eventHeight,
           child: Container(
             padding: const EdgeInsets.all(4.0),
-            margin: const EdgeInsets.only(bottom: 1.0), // Small gap between stacked events
+            margin: const EdgeInsets.only(bottom: 1.0),
             decoration: BoxDecoration(
               color: theme.colorScheme.secondary.withOpacity(0.7),
               borderRadius: BorderRadius.circular(4.0),
@@ -654,12 +689,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
             child: Text(
               event.title,
               style: TextStyle(
-                color: theme.colorScheme.onSecondary.withOpacity(0.9), // Ensuring good contrast
+                color: theme.colorScheme.onSecondary.withOpacity(0.9),
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
               ),
               overflow: TextOverflow.ellipsis,
-              maxLines: eventHeight > 25 ? 2 : 1, // Show more lines if event box is taller
+              maxLines: eventHeight > 25 ? 2 : 1,
             ),
           ),
         ),
@@ -668,19 +703,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return Stack(children: stackChildren);
   }
 
-
-  Widget _buildWeekView(BuildContext context) {
+  Widget _buildWeekPageWidget(BuildContext context, DateTime weekStart) {
     final theme = Theme.of(context);
     final weekDayHeaderColor = theme.colorScheme.primary;
     final borderColor = theme.dividerColor;
 
     final weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    List<DateTime> weekDates = List.generate(7, (i) => _focusedWeekStart.add(Duration(days: i)));
+    List<DateTime> weekDates = List.generate(7, (i) => weekStart.add(Duration(days: i)));
     final totalScrollableHeight = (_maxHour - _minHour + 1) * _hourHeight;
 
     return Column(
       children: [
-        Padding( // Week Navigation
+        Padding(
           padding: const EdgeInsets.symmetric(vertical: 8.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -694,9 +728,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ],
           ),
         ),
-        Row( // Weekday Headers
+        Row(
           children: [
-            SizedBox(width: _timeLabelWidth), // Spacer for time labels
+            SizedBox(width: _timeLabelWidth),
             ...weekDates.map((date) {
               return Expanded(
                 child: Container(
@@ -716,24 +750,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ],
         ),
         Expanded(
-          child: SingleChildScrollView(
+          child: SingleChildScrollView( // Important for the content within the PageView page
             child: SizedBox(
               height: totalScrollableHeight,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox( // Time Label Column
+                  SizedBox(
                     width: _timeLabelWidth,
                     height: totalScrollableHeight,
                     child: _buildTimeLabelStack(context),
                   ),
-                  ...weekDates.map((date) { // Day Columns
+                  ...weekDates.map((date) {
                     final daySpecificEvents = _events[DateTime(date.year, date.month, date.day)] ?? [];
                     daySpecificEvents.sort((a, b) => (a.startTime.hour * 60 + a.startTime.minute)
                         .compareTo(b.startTime.hour * 60 + b.startTime.minute));
 
                     return Expanded(
-                      child: LayoutBuilder( // Use LayoutBuilder to get width for each day column
+                      child: LayoutBuilder(
                         builder: (context, constraints) {
                           return Container(
                             height: totalScrollableHeight,
@@ -758,21 +792,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     final bgColor = theme.scaffoldBackgroundColor;
     final accentColor = theme.colorScheme.primary;
     final textColor = theme.colorScheme.onSurface;
-
-
     final weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    final monthName = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ][_focusedMonth.month - 1];
+    
+    // This monthName is now only for the header in month view, which is outside the PageView
+    final monthNameDisplay = DateFormat.MMMM().format(_focusedMonth);
+    final yearDisplay = _focusedMonth.year.toString();
+
 
     return Scaffold(
       appBar: AppBar(
@@ -797,7 +828,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       backgroundColor: bgColor,
       body: Column(
         children: [
-          if (!_isWeekView)
+          if (!_isWeekView) // Month View Header
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
@@ -806,14 +837,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        monthName,
+                        monthNameDisplay, // Use dynamically calculated name based on _focusedMonth
                         style: theme.textTheme.titleLarge?.copyWith(
                           color: accentColor,
                           fontSize: 26,
                         ),
                       ),
                       Text(
-                        _focusedMonth.year.toString(),
+                        yearDisplay, // Use dynamically calculated year
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: textColor.withOpacity(0.7),
                           fontSize: 15,
@@ -837,7 +868,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ],
               ),
             ),
-          if (!_isWeekView)
+          if (!_isWeekView) // Weekday Headers for Month View
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               child: Row(
@@ -861,11 +892,42 @@ class _CalendarScreenState extends State<CalendarScreen> {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: !_isWeekView
-                  ? SingleChildScrollView(
-                      child: _buildResponsiveDaysGrid(context),
+              child: _isWeekView
+                  ? PageView.builder(
+                      controller: _weekPageController,
+                      onPageChanged: (pageIndex) {
+                        setState(() {
+                          _focusedWeekStart = _getDateFromWeekPageIndex(pageIndex);
+                        });
+                      },
+                      itemBuilder: (context, pageIndex) {
+                        final weekStart = _getDateFromWeekPageIndex(pageIndex);
+                        return _buildWeekPageWidget(context, weekStart);
+                      },
                     )
-                  : _buildWeekView(context),
+                  : PageView.builder(
+                      controller: _monthPageController,
+                      onPageChanged: (pageIndex) {
+                        setState(() {
+                          _focusedMonth = _getDateFromMonthPageIndex(pageIndex);
+                           if (_focusedMonth.year == _today.year && _focusedMonth.month == _today.month) {
+                            _selectedDate = _today;
+                          } else {
+                            // Keep _selectedDate if it's in the new _focusedMonth, otherwise clear it or set to first day.
+                            // For simplicity, clearing it if month changes:
+                             if(_selectedDate != null && (_selectedDate!.month != _focusedMonth.month || _selectedDate!.year != _focusedMonth.year) ){
+                               _selectedDate = null;
+                             }
+                          }
+                        });
+                      },
+                      itemBuilder: (context, pageIndex) {
+                        final month = _getDateFromMonthPageIndex(pageIndex);
+                        // The SingleChildScrollView is removed here, as PageView handles scrolling.
+                        // _buildMonthPageWidget returns the GridView directly.
+                        return _buildMonthPageWidget(context, month);
+                      },
+                    ),
             ),
           ),
           const SizedBox(height: 8),
@@ -874,3 +936,4 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 }
+
