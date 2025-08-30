@@ -1,3 +1,5 @@
+// ignore_for_file: non_constant_identifier_names, deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // For date formatting
 
@@ -616,7 +618,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Widget _buildResponsiveDaysGrid(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final gridBorderColor = isDark ? Colors.grey.shade700.withOpacity(0.5) : Colors.grey.withOpacity(0.2);
+    final gridBorderColor = isDark ? Colors.grey.shade700.withOpacity(0.0) : Colors.grey.withOpacity(0.0);
     final prevNextMonthTextColor = theme.disabledColor.withOpacity(0.5);
     final todayIndicatorColor = isDark ? Colors.teal.shade300 : Colors.teal.shade600;
     final selectedDayBgColor = todayIndicatorColor.withOpacity(0.2);
@@ -920,7 +922,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ),
                 ),
               );
-            }).toList(),
+            }),
           ],
         ),
         Expanded(
@@ -956,7 +958,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         },
                       ),
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
             ),
@@ -970,7 +972,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     final bgColor = theme.scaffoldBackgroundColor;
     final accentColor = theme.colorScheme.primary;
