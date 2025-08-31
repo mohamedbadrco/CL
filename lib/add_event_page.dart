@@ -1,7 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import './main.dart'; // Assuming Event class is in main.dart or accessible via it
+import './database_helper.dart'; // Event class is in database_helper.dart
 
 class AddEventPage extends StatefulWidget {
   final DateTime date;
@@ -92,10 +92,10 @@ class _AddEventPageState extends State<AddEventPage> {
       final newEvent = Event(
         title: _title,
         date: _selectedDate, // Use the selected date
-        startTime: _startTime,
-        endTime: _endTime,
+        startTime: '${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}',
+        endTime: '${_endTime.hour.toString().padLeft(2, '0')}:${_endTime.minute.toString().padLeft(2, '0')}',
         location: _location,
-        notes: _notes,
+        description: _notes,
       );
       Navigator.of(context).pop(newEvent);
     }
@@ -174,7 +174,7 @@ class _AddEventPageState extends State<AddEventPage> {
                 ),
                 trailing: Icon(Icons.edit_calendar_outlined, color: theme.colorScheme.primary),
                 onTap: _pickDate, // Allow tapping to change date
-                tileColor: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                tileColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
               ),
               const SizedBox(height: 16),
@@ -188,7 +188,7 @@ class _AddEventPageState extends State<AddEventPage> {
                         style: TextStyle(fontSize: 16, color: theme.colorScheme.onSurface),
                       ),
                       onTap: _pickStartTime,
-                      tileColor: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                      tileColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
                     ),
                   ),
@@ -201,7 +201,7 @@ class _AddEventPageState extends State<AddEventPage> {
                          style: TextStyle(fontSize: 16, color: theme.colorScheme.onSurface),
                       ),
                       onTap: _pickEndTime,
-                      tileColor: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                      tileColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
                     ),
                   ),
@@ -245,3 +245,9 @@ class _AddEventPageState extends State<AddEventPage> {
     );
   }
 }
+   
+
+
+
+
+

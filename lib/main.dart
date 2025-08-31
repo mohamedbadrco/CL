@@ -4,36 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // For date formatting
 import './add_event_page.dart'; // Import the new AddEventPage
 import './event_details_page.dart'; // Import the EventDetailsPage
+import './database_helper.dart'; // Import DatabaseHelper
 
-// Event class from new.dart
-class Event {
-  final String title;
-  final DateTime date; // Added date field
-  final TimeOfDay startTime;
-  final TimeOfDay endTime;
-  final String location;
-  final String notes;
-
-  Event({
-    required this.title,
-    required this.date, // Added date to constructor
-    required this.startTime,
-    required this.endTime,
-    this.location = '',
-    this.notes = '',
-  });
-
-  int get durationInMinutes {
-    final startMinutes = startTime.hour * 60 + startTime.minute;
-    final endMinutes = endTime.hour * 60 + endTime.minute;
-    return endMinutes - startMinutes;
-  }
-}
+// Event class is now imported from database_helper.dart
 
 // DayScheduleView class from new.dart
 class DayScheduleView extends StatelessWidget {
   final DateTime date;
-  final List<Event> events;
+  final List<Event> events; // Uses Event from database_helper.dart
   final double hourHeight; // Height of each hour slot in the timeline
   final TimeOfDay TaminTime; //e.g. TimeOfDay(hour: 0, minute: 0);
   final TimeOfDay TamaxTime; //e.g., TimeOfDay(hour: 23, minute: 59)
@@ -49,12 +27,12 @@ class DayScheduleView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final todayEvents = events.where((event) {
-      return true; // Assuming events are already filtered for the day
-    }).toList()
+    // Events are already sorted and filtered by the caller if needed,
+    // but if not, ensure sorting by start time.
+    final todayEvents = List<Event>.from(events) // Create a mutable copy
       ..sort((a, b) =>
-      (a.startTime.hour * 60 + a.startTime.minute) -
-          (b.startTime.hour * 60 + b.startTime.minute));
+      (a.startTimeAsTimeOfDay.hour * 60 + a.startTimeAsTimeOfDay.minute) -
+          (b.startTimeAsTimeOfDay.hour * 60 + b.startTimeAsTimeOfDay.minute));
 
     return SingleChildScrollView(
       child: Stack(
@@ -72,7 +50,6 @@ class DayScheduleView extends StatelessWidget {
     final theme = Theme.of(context);
     final slotBorderColor = theme.colorScheme.outlineVariant.withOpacity(0.5);
     final timeLabelColor = theme.colorScheme.onSurface.withOpacity(0.6);
-
 
     for (int i = 0; i < totalHours; i++) {
       final hour = TaminTime.hour + i;
@@ -125,9 +102,8 @@ class DayScheduleView extends StatelessWidget {
     final eventBgColor = theme.colorScheme.secondaryContainer;
     final eventTextColor = theme.colorScheme.onSecondaryContainer;
 
-
-    for (var event in dayEvents) {
-      final double topOffset = _calculateTopOffset(event.startTime);
+    for (var event in dayEvents) { // event is now from database_helper.dart
+      final double topOffset = _calculateTopOffset(event.startTimeAsTimeOfDay);
       final double eventHeight = _calculateEventHeight(event.durationInMinutes);
 
       eventWidgets.add(
@@ -139,7 +115,7 @@ class DayScheduleView extends StatelessWidget {
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => EventDetailsPage(event: event),
+                  builder: (context) => EventDetailsPage(event: event), // Pass DB Event
                 ),
               );
             },
@@ -180,7 +156,6 @@ class DayScheduleView extends StatelessWidget {
   }
 
   double _calculateEventHeight(int durationInMinutes) {
-    // Ensure minimum height for very short events to be visible
     final calculatedHeight = (durationInMinutes / 60.0) * hourHeight;
     return calculatedHeight < 20.0 ? 20.0 : calculatedHeight;
   }
@@ -198,7 +173,7 @@ class CalendarApp extends StatefulWidget {
 }
 
 class _CalendarAppState extends State<CalendarApp> {
-  ThemeMode _themeMode = ThemeMode.system; // Use system theme by default
+  ThemeMode _themeMode = ThemeMode.system;
 
   void _toggleTheme() {
     setState(() {
@@ -226,7 +201,7 @@ class _CalendarAppState extends State<CalendarApp> {
         useMaterial3: true,
         appBarTheme: AppBarTheme(
           elevation: 0,
-          backgroundColor: lightColorScheme.background, // Changed
+          backgroundColor: lightColorScheme.background,
           foregroundColor: lightColorScheme.onSurface,
         ),
         textTheme: TextTheme(
@@ -241,7 +216,7 @@ class _CalendarAppState extends State<CalendarApp> {
         useMaterial3: true,
         appBarTheme: AppBarTheme(
           elevation: 0,
-          backgroundColor: darkColorScheme.background, // Changed
+          backgroundColor: darkColorScheme.background,
           foregroundColor: darkColorScheme.onSurface,
         ),
          textTheme: TextTheme(
@@ -275,7 +250,7 @@ class CalendarScreen extends StatefulWidget {
 }
 
 class _CalendarScreenState extends State<CalendarScreen> {
-  static const int _initialPageIndex = 10000; // For "infinite" scrolling
+  static const int _initialPageIndex = 10000;
   static const Duration _pageScrollDuration = Duration(milliseconds: 300);
   static const Curve _pageScrollCurve = Curves.easeInOut;
 
@@ -284,7 +259,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   DateTime _focusedMonth = DateTime(DateTime.now().year, DateTime.now().month);
   DateTime? _selectedDate;
-  final Map<DateTime, List<Event>> _events = {};
+  // _events map now holds Event objects from database_helper.dart
+  Map<DateTime, List<Event>> _events = {};
   final DateTime _today = DateTime(
     DateTime.now().year,
     DateTime.now().month,
@@ -298,21 +274,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
     DateTime.now().day - (DateTime.now().weekday % 7),
   );
 
-  final double _hourHeight = 60.0; // Increased for better touchability
+  final double _hourHeight = 60.0;
   final int _minHour = 0;
   final int _maxHour = 23;
   final double _timeLabelWidth = 50.0;
 
+  final dbHelper = DatabaseHelper.instance; // Instance of DatabaseHelper
+
   @override
   void initState() {
     super.initState();
-    if (_focusedMonth.year == _today.year && _focusedMonth.month == _today.month) {
-      _selectedDate = _today;
-    }
+    _selectedDate = _today; // Select today by default
     _focusedWeekStart = _today.subtract(Duration(days: _today.weekday % 7));
 
     _monthPageController = PageController(initialPage: _calculateMonthPageIndex(_focusedMonth));
     _weekPageController = PageController(initialPage: _calculateWeekPageIndex(_focusedWeekStart));
+    _loadEventsFromDb(); // Load all events from DB
   }
 
   @override
@@ -322,7 +299,32 @@ class _CalendarScreenState extends State<CalendarScreen> {
     super.dispose();
   }
 
-  // --- PageView Indexing Helper Methods ---
+  Future<void> _loadEventsFromDb() async {
+    final allEvents = await dbHelper.getAllEvents();
+    final Map<DateTime, List<Event>> newEventsMap = {};
+    for (var event in allEvents) {
+      // Normalize date to DateTime(year, month, day) for map key
+      final key = DateTime(event.date.year, event.date.month, event.date.day);
+      newEventsMap.putIfAbsent(key, () => []).add(event);
+    }
+    if (mounted) { // Check if the widget is still in the tree
+      setState(() {
+        _events = newEventsMap;
+      });
+    }
+  }
+
+  Future<void> _loadEventsForDate(DateTime date) async {
+    final key = DateTime(date.year, date.month, date.day);
+    final dayEvents = await dbHelper.getEventsForDate(key);
+     if (mounted) {
+      setState(() {
+        _events[key] = dayEvents;
+      });
+    }
+  }
+
+
   int _calculateMonthPageIndex(DateTime month) {
     return _initialPageIndex + (month.year - _today.year) * 12 + (month.month - _today.month);
   }
@@ -343,7 +345,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return todayWeekStart.add(Duration(days: weekOffset * 7));
   }
 
-  // --- Navigation Methods ---
   void _goToPreviousMonth() {
     if (_monthPageController.hasClients) {
         _monthPageController.previousPage(duration: _pageScrollDuration, curve: _pageScrollCurve);
@@ -390,28 +391,38 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   void _addEvent(DateTime initialDate) async {
-    final result = await Navigator.of(context).push<Event>(
+    // AddEventPage should return the new Event object (from database_helper.dart)
+    final newEventFromPage = await Navigator.of(context).push<Event>(
       MaterialPageRoute(
+        // Pass a callback to AddEventPage if it needs to inform about save
         builder: (context) => AddEventPage(date: initialDate),
       ),
     );
 
-    if (result != null) {
-      setState(() {
-        final key = DateTime(result.date.year, result.date.month, result.date.day);
-        _events.putIfAbsent(key, () => []).add(result);
-        _selectedDate = key;
-      });
+    if (newEventFromPage != null) {
+      await dbHelper.insertEvent(newEventFromPage);
+      // Reload events for the specific date to reflect the new event
+      _loadEventsForDate(newEventFromPage.date);
+      // Optionally, if _selectedDate should change to the new event's date:
+      if (mounted) {
+        setState(() {
+          _selectedDate = DateTime(newEventFromPage.date.year, newEventFromPage.date.month, newEventFromPage.date.day);
+        });
+      }
     }
   }
 
-  void _showDayEventsTimeSlotsPage(DateTime date) {
-    final dayEvents = _events[DateTime(date.year, date.month, date.day)] ?? [];
+  void _showDayEventsTimeSlotsPage(DateTime date) async {
+    // Fetch events for the date directly from the database
+    final dayKey = DateTime(date.year, date.month, date.day);
+    final dayEvents = await dbHelper.getEventsForDate(dayKey);
+
+    if (!mounted) return; // Check if the widget is still in the tree
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => Scaffold(
           appBar: AppBar(
-            // elevation is handled by M3 theme
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
               onPressed: () => Navigator.of(context).pop(),
@@ -420,9 +431,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
               DateFormat.yMMMd().format(date),
             ),
           ),
-          body: DayScheduleView(
+          body: DayScheduleView( // Uses Event from database_helper.dart
             date: date,
-            events: dayEvents,
+            events: dayEvents, // Pass the fetched events
             hourHeight: _hourHeight,
             TaminTime: TimeOfDay(hour: _minHour, minute: 0),
             TamaxTime: TimeOfDay(hour: _maxHour, minute: 59),
@@ -434,7 +445,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Widget _buildMonthPageWidget(BuildContext context, DateTime monthToDisplay) {
     final theme = Theme.of(context);
-    // final gridBorderColor = theme.colorScheme.outlineVariant.withOpacity(0.3); // No longer primary way to color borders
     final prevNextMonthTextColor = theme.colorScheme.onSurface.withOpacity(0.38);
 
     final firstDayOfMonth = DateTime(monthToDisplay.year, monthToDisplay.month, 1);
@@ -455,8 +465,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
               height: boxSize,
               decoration: BoxDecoration(
                 border: Border(
-                  top: BorderSide(color: Colors.transparent, width: 0.5,), // Changed
-                  right: BorderSide(color: Colors.transparent, width: 0.5,), // Changed
+                  top: BorderSide(color: Colors.transparent, width: 0.5,),
+                  right: BorderSide(color: Colors.transparent, width: 0.5,),
                 ),
               ),
               child: Center(
@@ -482,15 +492,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
           _selectedDate!.month == date.month &&
           _selectedDate!.day == date.day;
       final isTodayDate = date.year == _today.year && date.month == _today.month && date.day == _today.day;
-      final hasEvent = _events.containsKey(DateTime(date.year, date.month, date.day)) &&
-                       _events[DateTime(date.year, date.month, date.day)]!.isNotEmpty;
+      // Use the _events map which is populated from the DB
+      final dayKey = DateTime(date.year, date.month, date.day);
+      final hasEvent = _events.containsKey(dayKey) && _events[dayKey]!.isNotEmpty;
 
       Color numberColor;
       FontWeight numberFontWeight = FontWeight.normal;
       BoxDecoration cellDecoration = BoxDecoration(
          border: Border(
-           top: BorderSide(color: Colors.transparent, width: 0.5,), // Changed
-           right: BorderSide(color: Colors.transparent, width: 0.5,), // Changed
+           top: BorderSide(color: Colors.transparent, width: 0.5,),
+           right: BorderSide(color: Colors.transparent, width: 0.5,),
          ),
       );
 
@@ -511,7 +522,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       if (isTodayDate && isSelected) {
           numberColor = theme.colorScheme.onPrimaryContainer;
       }
-
 
       dayWidgets.add(
         LayoutBuilder(
@@ -568,8 +578,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
               height: boxSize,
               decoration: BoxDecoration(
                  border: Border(
-                    top: BorderSide(color: Colors.transparent, width: 0.5,), // Changed
-                    right: BorderSide(color: Colors.transparent, width: 0.5,), // Changed
+                    top: BorderSide(color: Colors.transparent, width: 0.5,),
+                    right: BorderSide(color: Colors.transparent, width: 0.5,),
                   ),
               ),
               child: Center(
@@ -609,12 +619,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
           width: _timeLabelWidth,
           height: _hourHeight,
           child: Container(
-            padding: const EdgeInsets.only(right: 4.0), // Padding for label
+            padding: const EdgeInsets.only(right: 4.0),
             alignment: Alignment.centerRight,
             child: Text(
               DateFormat('HH:mm').format(DateTime(2000, 1, 1, hour)),
               style: TextStyle(
-                fontSize: 10, // Slightly smaller
+                fontSize: 10,
                 color: timeLabelColor,
               ),
             ),
@@ -629,7 +639,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final theme = Theme.of(context);
     List<Widget> stackChildren = [];
 
-    // Draw hour lines
     for (int hour = _minHour; hour <= _maxHour; hour++) {
       stackChildren.add(
         Positioned(
@@ -639,19 +648,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
           child: Divider(
             height: 1,
             thickness: 0.5,
-            color: theme.dividerColor.withOpacity(0.3), // Subtler divider
+            color: theme.dividerColor.withOpacity(0.3),
           ),
         ),
       );
     }
 
-    for (var event in events) {
-      final startMinutes = event.startTime.hour * 60 + event.startTime.minute;
-      final endMinutes = event.endTime.hour * 60 + event.endTime.minute;
+    for (var event in events) { // event is from database_helper.dart
+      final startMinutes = event.startTimeAsTimeOfDay.hour * 60 + event.startTimeAsTimeOfDay.minute;
+      final endMinutes = event.endTimeAsTimeOfDay.hour * 60 + event.endTimeAsTimeOfDay.minute;
       final minHourMinutes = _minHour * 60;
 
       final topPosition = ((startMinutes - minHourMinutes) / 60.0) * _hourHeight;
-      final eventDurationInMinutes = endMinutes - startMinutes;
+      final eventDurationInMinutes = endMinutes - startMinutes; // durationInMinutes is a getter in DB Event
       double eventHeight = (eventDurationInMinutes / 60.0) * _hourHeight;
 
       if (eventHeight < _hourHeight / 3) {
@@ -673,13 +682,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => EventDetailsPage(event: event),
+                  builder: (context) => EventDetailsPage(event: event), // Pass DB Event
                 ),
-              );
+              ).then((_) {
+                // After returning from EventDetailsPage, reload events for the day
+                // in case an event was updated or deleted.
+                _loadEventsForDate(day);
+              });
             },
             child: Container(
               padding: const EdgeInsets.all(4.0),
-              margin: const EdgeInsets.only(bottom: 1.0), // Space between concurrent events
+              margin: const EdgeInsets.only(bottom: 1.0),
               decoration: BoxDecoration(
                 color: theme.colorScheme.secondaryContainer.withOpacity(0.8),
                 borderRadius: BorderRadius.circular(4.0),
@@ -704,16 +717,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Widget _buildWeekPageWidget(BuildContext context, DateTime weekStart) {
     final theme = Theme.of(context);
-    // final weekDayHeaderColor = theme.colorScheme.primary; // Not used
     final borderColor = theme.dividerColor;
 
-    final weekDays = DateFormat.EEEE().dateSymbols.STANDALONESHORTWEEKDAYS; // Localized short weekdays
+    final weekDays = DateFormat.EEEE().dateSymbols.STANDALONESHORTWEEKDAYS;
     List<DateTime> weekDates = List.generate(7, (i) => weekStart.add(Duration(days: i)));
     final totalScrollableHeight = (_maxHour - _minHour + 1) * _hourHeight;
 
     return Column(
       children: [
-        Padding( // Week Navigation Header
+        Padding(
           padding: const EdgeInsets.symmetric(vertical: 8.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -727,9 +739,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ],
           ),
         ),
-        Row( // Weekday Headers
+        Row(
           children: [
-            SizedBox(width: _timeLabelWidth), // Spacer for time labels
+            SizedBox(width: _timeLabelWidth),
             ...weekDates.map((date) {
               bool isToday = date.year == _today.year && date.month == _today.month && date.day == _today.day;
               return Expanded(
@@ -749,22 +761,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
             }),
           ],
         ),
-        Expanded( // Scrollable Week View Content
+        Expanded(
           child: SingleChildScrollView(
             child: SizedBox(
               height: totalScrollableHeight,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox( // Time Labels Column
+                  SizedBox(
                     width: _timeLabelWidth,
                     height: totalScrollableHeight,
                     child: _buildTimeLabelStack(context),
                   ),
-                  ...weekDates.map((date) { // Day Columns
-                    final daySpecificEvents = _events[DateTime(date.year, date.month, date.day)] ?? [];
-                    daySpecificEvents.sort((a, b) => (a.startTime.hour * 60 + a.startTime.minute)
-                        .compareTo(b.startTime.hour * 60 + b.startTime.minute));
+                  ...weekDates.map((date) {
+                    final dayKey = DateTime(date.year, date.month, date.day);
+                    // Use the _events map which is populated from the DB
+                    final daySpecificEvents = _events[dayKey] ?? [];
+                    // Ensure sorting if not already sorted (DB query might sort, but good to be sure)
+                     daySpecificEvents.sort((a, b) => (a.startTimeAsTimeOfDay.hour * 60 + a.startTimeAsTimeOfDay.minute)
+                        .compareTo(b.startTimeAsTimeOfDay.hour * 60 + b.startTimeAsTimeOfDay.minute));
 
                     return Expanded(
                       child: LayoutBuilder(
@@ -795,19 +810,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final weekDayNames = DateFormat.EEEE().dateSymbols.STANDALONENARROWWEEKDAYS; // Localized narrow weekdays
+    final weekDayNames = DateFormat.EEEE().dateSymbols.STANDALONENARROWWEEKDAYS;
 
-    final monthNameDisplay = DateFormat.yMMMM().format(_focusedMonth); // "September 2023"
+    final monthNameDisplay = DateFormat.yMMMM().format(_focusedMonth);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isWeekView ? 'Week View' : 'Month View'), // Title changes with view
+        title: Text(_isWeekView ? 'Week View' : 'Month View'),
         centerTitle: true,
         actions: [
           IconButton(
             icon: Icon(
               widget.themeMode == ThemeMode.light
-                  ? Icons.dark_mode_outlined // Using outlined icons
+                  ? Icons.dark_mode_outlined
                   : Icons.light_mode_outlined,
             ),
             onPressed: widget.onToggleTheme,
@@ -822,7 +837,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ),
       body: Column(
         children: [
-          if (!_isWeekView) // Month View Header (Month Name and Year)
+          if (!_isWeekView)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
@@ -845,7 +860,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ],
               ),
             ),
-          if (!_isWeekView) // Weekday Headers for Month View
+          if (!_isWeekView)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               child: Row(
@@ -853,7 +868,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     .map((name) => Expanded(
                           child: Center(
                             child: Text(
-                              name.toUpperCase(), // Using narrow day names
+                              name.toUpperCase(),
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12,
@@ -874,6 +889,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       onPageChanged: (pageIndex) {
                         setState(() {
                           _focusedWeekStart = _getDateFromWeekPageIndex(pageIndex);
+                           // Optionally, load events if not already loaded for the new view
+                           // For week view, _buildWeekPageWidget handles fetching/filtering from _events
                         });
                       },
                       itemBuilder: (context, pageIndex) {
@@ -888,16 +905,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           final newFocusedMonth = _getDateFromMonthPageIndex(pageIndex);
                           _focusedMonth = newFocusedMonth;
                            if (newFocusedMonth.year == _today.year && newFocusedMonth.month == _today.month) {
-                            // If current view month is today's month, select today
                             if (_selectedDate == null || _selectedDate!.month != newFocusedMonth.month || _selectedDate!.year != newFocusedMonth.year) {
                                 _selectedDate = _today;
                             }
                           } else {
-                            // If selectedDate is not in the new focusedMonth, clear it
                              if(_selectedDate != null && (_selectedDate!.month != newFocusedMonth.month || _selectedDate!.year != newFocusedMonth.year) ){
-                               _selectedDate = null; 
+                               _selectedDate = null;
                              }
                           }
+                          // Events are loaded globally in initState and updated on add/edit/delete
+                          // No need to reload all events on month change unless your logic requires it
                         });
                       },
                       itemBuilder: (context, pageIndex) {
@@ -914,8 +931,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
         onPressed: () {
           _addEvent(_selectedDate ?? _today);
         },
-        child: const Icon(Icons.add),
         tooltip: 'Add Event',
+        child: const Icon(Icons.add),
       ),
     );
   }

@@ -1,7 +1,9 @@
 
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import './main.dart'; // Assuming Event class is in main.dart
+import './database_helper.dart'; // Event class is in database_helper.dart
 
 class EventDetailsPage extends StatelessWidget {
   final Event event;
@@ -10,7 +12,7 @@ class EventDetailsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    Theme.of(context);
     final timeFormat = DateFormat.jm(); // e.g., 5:08 PM
     final dateFormat = DateFormat.yMMMMd(); // e.g., September 10, 2023
 
@@ -41,7 +43,7 @@ class EventDetailsPage extends StatelessWidget {
                     context,
                     icon: Icons.access_time_outlined,
                     label: 'Start Time',
-                    value: timeFormat.format(DateTime(event.date.year, event.date.month, event.date.day, event.startTime.hour, event.startTime.minute)),
+                    value: timeFormat.format(DateTime(event.date.year, event.date.month, event.date.day, event.startTimeAsTimeOfDay.hour, event.startTimeAsTimeOfDay.minute)),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -50,7 +52,7 @@ class EventDetailsPage extends StatelessWidget {
                     context,
                     icon: Icons.access_time_filled_outlined,
                     label: 'End Time',
-                    value: timeFormat.format(DateTime(event.date.year, event.date.month, event.date.day, event.endTime.hour, event.endTime.minute)),
+                    value: timeFormat.format(DateTime(event.date.year, event.date.month, event.date.day, event.endTimeAsTimeOfDay.hour, event.endTimeAsTimeOfDay.minute)),
                   ),
                 ),
               ],
@@ -64,13 +66,13 @@ class EventDetailsPage extends StatelessWidget {
                 value: event.location,
               ),
             ],
-            if (event.notes.isNotEmpty) ...[
+            if (event.description.isNotEmpty) ...[
               const SizedBox(height: 16),
               _buildDetailItem(
                 context,
                 icon: Icons.notes_outlined,
                 label: 'Notes',
-                value: event.notes,
+                value: event.description,
                 isMultiline: true,
               ),
             ],
