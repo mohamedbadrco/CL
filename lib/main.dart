@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // For date formatting
 import './add_event_page.dart'; // Import the new AddEventPage
+import './event_details_page.dart'; // Import the EventDetailsPage
 
 // Event class from new.dart
 class Event {
@@ -134,21 +135,30 @@ class DayScheduleView extends StatelessWidget {
           top: topOffset,
           left: 55, // Shifted right a bit
           right: 10,
-          child: Container(
-            height: eventHeight,
-            padding: const EdgeInsets.all(6),
-            margin: const EdgeInsets.only(bottom: 2),
-            decoration: BoxDecoration(
-              color: eventBgColor.withOpacity(0.9),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              event.title,
-              style: TextStyle(
-                  color: eventTextColor,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold),
-              overflow: TextOverflow.ellipsis,
+          child: GestureDetector(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => EventDetailsPage(event: event),
+                ),
+              );
+            },
+            child: Container(
+              height: eventHeight,
+              padding: const EdgeInsets.all(6),
+              margin: const EdgeInsets.only(bottom: 2),
+              decoration: BoxDecoration(
+                color: eventBgColor.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                event.title,
+                style: TextStyle(
+                    color: eventTextColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ),
         ),
@@ -659,22 +669,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
           left: 2.0,
           width: columnWidth - 4.0,
           height: eventHeight,
-          child: Container(
-            padding: const EdgeInsets.all(4.0),
-            margin: const EdgeInsets.only(bottom: 1.0), // Space between concurrent events
-            decoration: BoxDecoration(
-              color: theme.colorScheme.secondaryContainer.withOpacity(0.8),
-              borderRadius: BorderRadius.circular(4.0),
-            ),
-            child: Text(
-              event.title,
-              style: TextStyle(
-                color: theme.colorScheme.onSecondaryContainer,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
+          child: GestureDetector(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => EventDetailsPage(event: event),
+                ),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.all(4.0),
+              margin: const EdgeInsets.only(bottom: 1.0), // Space between concurrent events
+              decoration: BoxDecoration(
+                color: theme.colorScheme.secondaryContainer.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(4.0),
               ),
-              overflow: TextOverflow.ellipsis,
-              maxLines: eventHeight > 25 ? 2 : 1,
+              child: Text(
+                event.title,
+                style: TextStyle(
+                  color: theme.colorScheme.onSecondaryContainer,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: eventHeight > 25 ? 2 : 1,
+              ),
             ),
           ),
         ),
