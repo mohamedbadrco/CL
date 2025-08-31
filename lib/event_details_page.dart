@@ -7,15 +7,16 @@ import './database_helper.dart'; // Event class is in database_helper.dart
 
 class EventDetailsPage extends StatelessWidget {
   final Event event;
+  final VoidCallback? onDelete;
 
-  const EventDetailsPage({super.key, required this.event});
+  const EventDetailsPage({super.key, required this.event, this.onDelete});
 
   Future<void> _deleteEvent(BuildContext context) async {
     if (event.id != null) {
       await DatabaseHelper.instance.deleteEvent(event.id!);
+      onDelete?.call();
       if (context.mounted) {
-        // Navigate back to the month view (assuming it's the first route)
-        Navigator.of(context).popUntil((route) => route.isFirst);
+        Navigator.of(context).pop();
       }
     }
   }

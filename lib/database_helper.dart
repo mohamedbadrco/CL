@@ -170,4 +170,11 @@ class DatabaseHelper {
     Database db = await instance.database;
     return await db.delete(tableEvents, where: '$columnId = ?', whereArgs: [id]);
   }
+
+  Future<void> resetDatabase() async {
+    Directory documentsDirectory = await getApplicationDocumentsDirectory();
+    String path = join(documentsDirectory.path, _databaseName);
+    await deleteDatabase(path);
+    _database = null;
+  }
 }

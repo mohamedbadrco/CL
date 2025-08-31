@@ -15,6 +15,7 @@ class DayScheduleView extends StatelessWidget {
   final double hourHeight; // Height of each hour slot in the timeline
   final TimeOfDay TaminTime; //e.g. TimeOfDay(hour: 0, minute: 0);
   final TimeOfDay TamaxTime; //e.g., TimeOfDay(hour: 23, minute: 59)
+  final VoidCallback? onEventDeleted;
 
   const DayScheduleView({
     super.key,
@@ -23,6 +24,7 @@ class DayScheduleView extends StatelessWidget {
     this.hourHeight = 60.0, // e.g., 60 pixels per hour
     this.TaminTime = const TimeOfDay(hour: 0, minute: 0),
     this.TamaxTime = const TimeOfDay(hour: 23, minute: 59),
+    this.onEventDeleted,
   });
 
   @override
@@ -115,7 +117,7 @@ class DayScheduleView extends StatelessWidget {
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => EventDetailsPage(event: event), // Pass DB Event
+                  builder: (context) => EventDetailsPage(event: event, onDelete: onEventDeleted), // Pass DB Event
                 ),
               );
             },
@@ -214,9 +216,10 @@ class _CalendarAppState extends State<CalendarApp> {
       darkTheme: ThemeData(
         colorScheme: darkColorScheme,
         useMaterial3: true,
+        scaffoldBackgroundColor: Colors.black,
         appBarTheme: AppBarTheme(
           elevation: 0,
-          backgroundColor: darkColorScheme.background,
+          backgroundColor: Colors.black,
           foregroundColor: darkColorScheme.onSurface,
         ),
          textTheme: TextTheme(
@@ -322,6 +325,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
         _events[key] = dayEvents;
       });
     }
+  }
+
+  Future<void> _resetDatabase() async {
+    await dbHelper.resetDatabase();
+    if (mounted) {
+      setState(() {
+        _events.clear();
+      });
+    }
+    _loadEventsFromDb();
   }
 
 
@@ -437,6 +450,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             hourHeight: _hourHeight,
             TaminTime: TimeOfDay(hour: _minHour, minute: 0),
             TamaxTime: TimeOfDay(hour: _maxHour, minute: 59),
+            onEventDeleted: () => _loadEventsForDate(date),
           ),
         ),
       ),
@@ -682,13 +696,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => EventDetailsPage(event: event), // Pass DB Event
+                  builder: (context) => EventDetailsPage(event: event, onDelete: () => _loadEventsForDate(day)), // Pass DB Event
                 ),
-              ).then((_) {
-                // After returning from EventDetailsPage, reload events for the day
-                // in case an event was updated or deleted.
-                _loadEventsForDate(day);
-              });
+              );
             },
             child: Container(
               padding: const EdgeInsets.all(4.0),
@@ -819,6 +829,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
         title: Text(_isWeekView ? 'Week View' : 'Month View'),
         centerTitle: true,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _resetDatabase,
+            tooltip: 'Reset Database',
+          ),
           IconButton(
             icon: Icon(
               widget.themeMode == ThemeMode.light
