@@ -10,6 +10,16 @@ class EventDetailsPage extends StatelessWidget {
 
   const EventDetailsPage({super.key, required this.event});
 
+  Future<void> _deleteEvent(BuildContext context) async {
+    if (event.id != null) {
+      await DatabaseHelper.instance.deleteEvent(event.id!);
+      if (context.mounted) {
+        // Navigate back to the month view (assuming it's the first route)
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     Theme.of(context);
@@ -23,6 +33,39 @@ class EventDetailsPage extends StatelessWidget {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: 'Delete Event',
+            onPressed: () {
+              // Show confirmation dialog before deleting
+              showDialog(
+                context: context,
+                builder: (BuildContext dialogContext) {
+                  return AlertDialog(
+                    title: const Text('Delete Event?'),
+                    content: const Text('Are you sure you want to delete this event? This action cannot be undone.'),
+                    actions: <Widget>[
+                      TextButton(
+                        child: const Text('Cancel'),
+                        onPressed: () {
+                          Navigator.of(dialogContext).pop(); // Close the dialog
+                        },
+                      ),
+                      TextButton(
+                        child: Text('Delete', style: TextStyle(color: Theme.of(dialogContext).colorScheme.error)),
+                        onPressed: () {
+                          Navigator.of(dialogContext).pop(); // Close the dialog
+                          _deleteEvent(context); // Pass the parent context
+                        },
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
