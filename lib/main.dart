@@ -264,7 +264,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime? _selectedDate;
   // _events map now holds Event objects from database_helper.dart
   Map<DateTime, List<Event>> _events = {};
-  final DateTime _today = DateTime(
+  DateTime _today = DateTime(
     DateTime.now().year,
     DateTime.now().month,
     DateTime.now().day,
@@ -289,6 +289,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     super.initState();
     _selectedDate = _today; // Select today by default
     _focusedWeekStart = _today.subtract(Duration(days: _today.weekday % 7));
+    _focusedMonth = DateTime(_today.year, _today.month);
 
     _monthPageController = PageController(initialPage: _calculateMonthPageIndex(_focusedMonth));
     _weekPageController = PageController(initialPage: _calculateWeekPageIndex(_focusedWeekStart));
@@ -339,12 +340,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
 
   int _calculateMonthPageIndex(DateTime month) {
-    return _initialPageIndex + (month.year - _today.year) * 12 + (month.month - _today.month);
+    // Calculate the difference in months from a fixed reference, e.g., _today's month
+    // This reference (_today) should be consistent with how _getDateFromMonthPageIndex is calculated
+    final referenceMonth = DateTime(_today.year, _today.month);
+    return _initialPageIndex + (month.year - referenceMonth.year) * 12 + (month.month - referenceMonth.month);
   }
 
   DateTime _getDateFromMonthPageIndex(int pageIndex) {
     final monthOffset = pageIndex - _initialPageIndex;
-    return DateTime(_today.year, _today.month + monthOffset, 1);
+    // Use the same reference month logic
+    final referenceMonth = DateTime(_today.year, _today.month);
+    return DateTime(referenceMonth.year, referenceMonth.month + monthOffset, 1);
   }
 
   int _calculateWeekPageIndex(DateTime weekStart) {
@@ -384,21 +390,54 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   void _toggleView() {
     setState(() {
+      final DateTime actualNow = DateTime.now();
+      _today = DateTime(actualNow.year, actualNow.month, actualNow.day);
+
       _isWeekView = !_isWeekView;
+
       if (_isWeekView) {
-        _focusedWeekStart = _selectedDate != null
-            ? _selectedDate!.subtract(Duration(days: _selectedDate!.weekday % 7))
-            : _today.subtract(Duration(days: _today.weekday % 7));
-        if (_weekPageController.hasClients) {
-            _weekPageController.jumpToPage(_calculateWeekPageIndex(_focusedWeekStart));
-        }
+        // Switching to Week View
+        DateTime weekViewAnchorDate = _selectedDate ?? _today;
+        _focusedWeekStart = weekViewAnchorDate.subtract(Duration(days: weekViewAnchorDate.weekday % 7));
+        
+        _weekPageController.dispose();
+        _weekPageController = PageController(initialPage: _calculateWeekPageIndex(_focusedWeekStart));
+        
       } else {
-        _focusedMonth = _selectedDate != null
-            ? DateTime(_selectedDate!.year, _selectedDate!.month)
-            : DateTime(_today.year, _today.month);
-        if (_monthPageController.hasClients) {
-            _monthPageController.jumpToPage(_calculateMonthPageIndex(_focusedMonth));
+        // Switching to Month View
+        _focusedMonth = DateTime(_today.year, _today.month); 
+        int targetMonthPageIndex = _calculateMonthPageIndex(_focusedMonth);
+
+        _monthPageController.dispose(); 
+        _monthPageController = PageController(initialPage: targetMonthPageIndex);
+
+        // Ensure _selectedDate is valid for the new _focusedMonth
+        if (_selectedDate != null &&
+            (_selectedDate!.year != _focusedMonth.year || _selectedDate!.month != _focusedMonth.month)) {
+          DateTime newSelectedCandidate = DateTime(_focusedMonth.year, _focusedMonth.month, _today.day);
+          if (newSelectedCandidate.month != _focusedMonth.month) { 
+              newSelectedCandidate = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
+          }
+          _selectedDate = newSelectedCandidate;
+        } else if (_selectedDate == null) { 
+            DateTime newSelectedCandidate = DateTime(_focusedMonth.year, _focusedMonth.month, _today.day);
+            if (newSelectedCandidate.month != _focusedMonth.month) {
+                newSelectedCandidate = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
+            }
+            _selectedDate = newSelectedCandidate;
         }
+        
+        // Add post frame callback to ensure jumpToPage
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _monthPageController.hasClients) {
+            // Check if the current page is already the target page to avoid unnecessary jumps
+            // PageController.page can be null initially or a double.
+            final currentPage = _monthPageController.page?.round();
+            if (currentPage != targetMonthPageIndex) {
+                 _monthPageController.jumpToPage(targetMonthPageIndex);
+            }
+          }
+        });
       }
     });
   }
@@ -479,8 +518,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
               height: boxSize,
               decoration: BoxDecoration(
                 border: Border(
-                  top: BorderSide(color: Colors.transparent, width: 0.5,),
-                  right: BorderSide(color: Colors.transparent, width: 0.5,),
+                  top: BorderSide(color: Colors.transparent, width: 0.5, ),
+                  right: BorderSide(color: Colors.transparent, width: 0.5, ),
                 ),
               ),
               child: Center(
@@ -514,8 +553,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
       FontWeight numberFontWeight = FontWeight.normal;
       BoxDecoration cellDecoration = BoxDecoration(
          border: Border(
-           top: BorderSide(color: Colors.transparent, width: 0.5,),
-           right: BorderSide(color: Colors.transparent, width: 0.5,),
+           top: BorderSide(color: Colors.transparent, width: 0.5, ),
+           right: BorderSide(color: Colors.transparent, width: 0.5, ),
          ),
       );
 
@@ -592,8 +631,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
               height: boxSize,
               decoration: BoxDecoration(
                  border: Border(
-                    top: BorderSide(color: Colors.transparent, width: 0.5,),
-                    right: BorderSide(color: Colors.transparent, width: 0.5,),
+                    top: BorderSide(color: Colors.transparent, width: 0.5, ),
+                    right: BorderSide(color: Colors.transparent, width: 0.5, ),
                   ),
               ),
               child: Center(

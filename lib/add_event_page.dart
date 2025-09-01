@@ -51,6 +51,7 @@ class _AddEventPageState extends State<AddEventPage> {
     final pickedTime = await showTimePicker(
       context: context,
       initialTime: _startTime,
+      initialEntryMode: TimePickerEntryMode.input, // Changed to input
     );
     if (pickedTime != null) {
       setState(() {
@@ -70,6 +71,7 @@ class _AddEventPageState extends State<AddEventPage> {
     final pickedTime = await showTimePicker(
       context: context,
       initialTime: _endTime,
+      initialEntryMode: TimePickerEntryMode.input, // Changed to input
     );
     if (pickedTime != null) {
       setState(() {
@@ -246,8 +248,3 @@ class _AddEventPageState extends State<AddEventPage> {
   }
 }
    
-
-
-
-
-
