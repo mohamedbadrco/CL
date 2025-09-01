@@ -4,26 +4,46 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import './database_helper.dart'; // Event class is in database_helper.dart
+import './add_event_page.dart'; // Import AddEventPage
 
 class EventDetailsPage extends StatelessWidget {
   final Event event;
-  final VoidCallback? onDelete;
+  final Function(Event? event)? onEventChanged; // Updated callback for edit/delete
 
-  const EventDetailsPage({super.key, required this.event, this.onDelete});
+  const EventDetailsPage({super.key, required this.event, this.onEventChanged});
 
   Future<void> _deleteEvent(BuildContext context) async {
     if (event.id != null) {
       await DatabaseHelper.instance.deleteEvent(event.id!);
-      onDelete?.call();
+      onEventChanged?.call(null); // Pass null to indicate deletion
       if (context.mounted) {
         Navigator.of(context).pop();
       }
     }
   }
 
+  Future<void> _editEvent(BuildContext context) async {
+    if (!context.mounted) return;
+    final updatedEvent = await Navigator.of(context).push<Event>(
+      MaterialPageRoute(
+        builder: (context) => AddEventPage(
+          date: event.date, // Initial date, can be re-picked in AddEventPage
+          eventToEdit: event,
+        ),
+      ),
+    );
+
+    if (updatedEvent != null && context.mounted) {
+      onEventChanged?.call(updatedEvent);
+      // Pop this details page because the underlying data has changed.
+      // The previous screen (e.g., calendar or day view) will handle reloading.
+      Navigator.of(context).pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    Theme.of(context);
+    final theme = Theme.of(context); // Get theme from context
     final timeFormat = DateFormat.jm(); // e.g., 5:08 PM
     final dateFormat = DateFormat.yMMMMd(); // e.g., September 10, 2023
 
@@ -36,10 +56,14 @@ class EventDetailsPage extends StatelessWidget {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            tooltip: 'Edit Event',
+            onPressed: () => _editEvent(context),
+          ),
+          IconButton(
             icon: const Icon(Icons.delete_outline),
             tooltip: 'Delete Event',
             onPressed: () {
-              // Show confirmation dialog before deleting
               showDialog(
                 context: context,
                 builder: (BuildContext dialogContext) {
@@ -50,14 +74,14 @@ class EventDetailsPage extends StatelessWidget {
                       TextButton(
                         child: const Text('Cancel'),
                         onPressed: () {
-                          Navigator.of(dialogContext).pop(); // Close the dialog
+                          Navigator.of(dialogContext).pop();
                         },
                       ),
                       TextButton(
                         child: Text('Delete', style: TextStyle(color: Theme.of(dialogContext).colorScheme.error)),
                         onPressed: () {
-                          Navigator.of(dialogContext).pop(); // Close the dialog
-                          _deleteEvent(context); // Pass the parent context
+                          Navigator.of(dialogContext).pop();
+                          _deleteEvent(context);
                         },
                       ),
                     ],
@@ -120,7 +144,6 @@ class EventDetailsPage extends StatelessWidget {
                 isMultiline: true,
               ),
             ],
-            // You can add more details or actions like Edit/Delete buttons here
           ],
         ),
       ),

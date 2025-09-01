@@ -117,7 +117,7 @@ class DayScheduleView extends StatelessWidget {
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => EventDetailsPage(event: event, onDelete: onEventDeleted), // Pass DB Event
+                  builder: (context) => EventDetailsPage(event: event, onEventChanged: (Event? updatedEvent) { if (updatedEvent == null) onEventDeleted?.call(); }), // Pass DB Event
                 ),
               );
             },
@@ -238,6 +238,10 @@ class _CalendarAppState extends State<CalendarApp> {
   }
 }
 
+/// A screen that displays a calendar with month and week views.
+///
+/// Allows users to navigate between months/weeks, select dates,
+/// view events, and add new events.
 class CalendarScreen extends StatefulWidget {
   final ThemeMode themeMode;
   final VoidCallback onToggleTheme;
@@ -252,6 +256,10 @@ class CalendarScreen extends StatefulWidget {
   State<CalendarScreen> createState() => _CalendarScreenState();
 }
 
+/// State for the [CalendarScreen].
+///
+/// Manages the current view (month or week), selected dates,
+/// event data, and navigation between different time periods.
 class _CalendarScreenState extends State<CalendarScreen> {
   static const int _initialPageIndex = 10000;
   static const Duration _pageScrollDuration = Duration(milliseconds: 300);
@@ -303,6 +311,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     super.dispose();
   }
 
+  /// Loads all events from the database and updates the state.
   Future<void> _loadEventsFromDb() async {
     final allEvents = await dbHelper.getAllEvents();
     final Map<DateTime, List<Event>> newEventsMap = {};
@@ -318,6 +327,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
+  /// Loads events for a specific [date] from the database and updates the state.
   Future<void> _loadEventsForDate(DateTime date) async {
     final key = DateTime(date.year, date.month, date.day);
     final dayEvents = await dbHelper.getEventsForDate(key);
@@ -328,6 +338,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
+  /// Resets the database and reloads all events.
   Future<void> _resetDatabase() async {
     await dbHelper.resetDatabase();
     if (mounted) {
@@ -338,7 +349,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _loadEventsFromDb();
   }
 
-
+  /// Calculates the page index for the month view based on the given [month].
   int _calculateMonthPageIndex(DateTime month) {
     // Calculate the difference in months from a fixed reference, e.g., _today's month
     // This reference (_today) should be consistent with how _getDateFromMonthPageIndex is calculated
@@ -346,6 +357,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return _initialPageIndex + (month.year - referenceMonth.year) * 12 + (month.month - referenceMonth.month);
   }
 
+  /// Gets the date from the month page index.
   DateTime _getDateFromMonthPageIndex(int pageIndex) {
     final monthOffset = pageIndex - _initialPageIndex;
     // Use the same reference month logic
@@ -353,41 +365,51 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return DateTime(referenceMonth.year, referenceMonth.month + monthOffset, 1);
   }
 
+  /// Calculates the page index for the week view based on the [weekStart] date.
   int _calculateWeekPageIndex(DateTime weekStart) {
     DateTime todayWeekStart = _today.subtract(Duration(days: _today.weekday % 7));
     return _initialPageIndex + (weekStart.difference(todayWeekStart).inDays ~/ 7);
   }
 
+  /// Gets the date from the week page index.
   DateTime _getDateFromWeekPageIndex(int pageIndex) {
     final weekOffset = pageIndex - _initialPageIndex;
     DateTime todayWeekStart = _today.subtract(Duration(days: _today.weekday % 7));
     return todayWeekStart.add(Duration(days: weekOffset * 7));
   }
 
+  /// Navigates to the previous month in the month view.
   void _goToPreviousMonth() {
     if (_monthPageController.hasClients) {
         _monthPageController.previousPage(duration: _pageScrollDuration, curve: _pageScrollCurve);
     }
   }
 
+  /// Navigates to the next month in the month view.
   void _goToNextMonth() {
     if (_monthPageController.hasClients) {
         _monthPageController.nextPage(duration: _pageScrollDuration, curve: _pageScrollCurve);
     }
   }
 
+  /// Navigates to the previous week in the week view.
   void _goToPreviousWeek() {
     if (_weekPageController.hasClients) {
       _weekPageController.previousPage(duration: _pageScrollDuration, curve: _pageScrollCurve);
     }
   }
 
+  /// Navigates to the next week in the week view.
   void _goToNextWeek() {
     if (_weekPageController.hasClients) {
       _weekPageController.nextPage(duration: _pageScrollDuration, curve: _pageScrollCurve);
     }
   }
 
+  /// Toggles between month and week view.
+  ///
+  /// Resets the [_today] date to the current day and updates
+  /// page controllers and focused dates accordingly.
   void _toggleView() {
     setState(() {
       final DateTime actualNow = DateTime.now();
@@ -442,6 +464,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
+  /// Adds a new event for the given [initialDate].
+  ///
+  /// Opens the [AddEventPage] and reloads events for the date
+  /// if a new event is added.
   void _addEvent(DateTime initialDate) async {
     // AddEventPage should return the new Event object (from database_helper.dart)
     final newEventFromPage = await Navigator.of(context).push<Event>(
@@ -464,6 +490,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
+  /// Shows a page with a time slot view for the given [date].
+  ///
+  /// Fetches events for the date from the database and displays them
+  /// in a [DayScheduleView].
   void _showDayEventsTimeSlotsPage(DateTime date) async {
     // Fetch events for the date directly from the database
     final dayKey = DateTime(date.year, date.month, date.day);
@@ -496,6 +526,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
+  /// Builds the widget for a single month page in the month view.
+  ///
+  /// Displays the days of the [monthToDisplay], highlighting the selected date,
+  /// today's date, and days with events.
   Widget _buildMonthPageWidget(BuildContext context, DateTime monthToDisplay) {
     final theme = Theme.of(context);
     final prevNextMonthTextColor = theme.colorScheme.onSurface.withOpacity(0.38);
@@ -659,6 +693,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
+  /// Builds the stack of time labels for the week view.
   Widget _buildTimeLabelStack(BuildContext context) {
     final theme = Theme.of(context);
     final timeLabelColor = theme.colorScheme.onSurface.withOpacity(0.6);
@@ -688,6 +723,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return Stack(children: timeLabels);
   }
 
+  /// Builds the schedule view for a single day within the week view.
+  ///
+  /// Displays events for the given [day] within a column of [columnWidth].
   Widget _buildSingleDayScheduleStack(BuildContext context, DateTime day, List<Event> events, double columnWidth) {
     final theme = Theme.of(context);
     List<Widget> stackChildren = [];
@@ -735,7 +773,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => EventDetailsPage(event: event, onDelete: () => _loadEventsForDate(day)), // Pass DB Event
+                  builder: (context) => EventDetailsPage(event: event, onEventChanged: (Event? updatedEvent) { if (updatedEvent == null) _loadEventsForDate(day); }), // Pass DB Event
                 ),
               );
             },
@@ -764,6 +802,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return Stack(children: stackChildren);
   }
 
+  /// Builds the widget for a single week page in the week view.
+  ///
+  /// Displays the days of the [weekStart] date, with time labels and events.
   Widget _buildWeekPageWidget(BuildContext context, DateTime weekStart) {
     final theme = Theme.of(context);
     final borderColor = theme.dividerColor;

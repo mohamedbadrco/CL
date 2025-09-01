@@ -5,8 +5,9 @@ import './database_helper.dart'; // Event class is in database_helper.dart
 
 class AddEventPage extends StatefulWidget {
   final DateTime date;
+  final Event? eventToEdit; // Added for editing
 
-  const AddEventPage({super.key, required this.date});
+  const AddEventPage({super.key, required this.date, this.eventToEdit});
 
   @override
   State<AddEventPage> createState() => _AddEventPageState();
@@ -21,15 +22,28 @@ class _AddEventPageState extends State<AddEventPage> {
   String _location = '';
   String _notes = '';
 
+  bool get _isEditing => widget.eventToEdit != null; // Helper to check mode
+
   @override
   void initState() {
     super.initState();
     _selectedDate = widget.date;
-    // Adjust default end time if start time is late in the day
-    if (_startTime.hour == 23) {
-      _endTime = const TimeOfDay(hour: 23, minute: 59);
+
+    if (widget.eventToEdit != null) {
+      final event = widget.eventToEdit!;
+      _title = event.title;
+      _selectedDate = event.date;
+      _startTime = event.startTimeAsTimeOfDay;
+      _endTime = event.endTimeAsTimeOfDay;
+      _location = event.location;
+      _notes = event.description;
     } else {
-      _endTime = TimeOfDay(hour: _startTime.hour + 1, minute: _startTime.minute);
+      // Default time setup for new event
+      if (_startTime.hour == 23) {
+        _endTime = const TimeOfDay(hour: 23, minute: 59);
+      } else {
+        _endTime = TimeOfDay(hour: _startTime.hour + 1, minute: _startTime.minute);
+      }
     }
   }
 
@@ -51,12 +65,11 @@ class _AddEventPageState extends State<AddEventPage> {
     final pickedTime = await showTimePicker(
       context: context,
       initialTime: _startTime,
-      initialEntryMode: TimePickerEntryMode.input, // Changed to input
+      initialEntryMode: TimePickerEntryMode.input,
     );
     if (pickedTime != null) {
       setState(() {
         _startTime = pickedTime;
-        // Adjust end time if it's before or same as new start time
         if ((_endTime.hour * 60 + _endTime.minute) <= (_startTime.hour * 60 + _startTime.minute)) {
           _endTime = TimeOfDay(
             hour: _startTime.hour == 23 ? 23 : _startTime.hour + 1,
@@ -71,16 +84,23 @@ class _AddEventPageState extends State<AddEventPage> {
     final pickedTime = await showTimePicker(
       context: context,
       initialTime: _endTime,
-      initialEntryMode: TimePickerEntryMode.input, // Changed to input
+      initialEntryMode: TimePickerEntryMode.input,
     );
     if (pickedTime != null) {
-      setState(() {
-        _endTime = pickedTime;
-      });
+      // Validate that end time is after start time
+      if ((pickedTime.hour * 60 + pickedTime.minute) > (_startTime.hour * 60 + _startTime.minute)) {
+        setState(() {
+          _endTime = pickedTime;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('End time must be after start time.')),
+        );
+      }
     }
   }
 
-  void _saveEvent() {
+  void _saveEvent() async { // Made async for database operations
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
 
@@ -91,15 +111,40 @@ class _AddEventPageState extends State<AddEventPage> {
         return;
       }
 
-      final newEvent = Event(
+      final eventData = Event(
+        id: _isEditing ? widget.eventToEdit!.id : null, // Preserve ID if editing
         title: _title,
-        date: _selectedDate, // Use the selected date
+        date: _selectedDate,
         startTime: '${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}',
         endTime: '${_endTime.hour.toString().padLeft(2, '0')}:${_endTime.minute.toString().padLeft(2, '0')}',
         location: _location,
         description: _notes,
       );
-      Navigator.of(context).pop(newEvent);
+
+      // Save to database
+      final dbHelper = DatabaseHelper.instance;
+      int savedId;
+      if (_isEditing) {
+        savedId = await dbHelper.updateEvent(eventData);
+      } else {
+        savedId = await dbHelper.insertEvent(eventData);
+      }
+      
+      // If inserting, the id in eventData is null, so we create a new Event object with the returned id.
+      // If updating, savedId is the count of rows affected, ideally 1. We can return the eventData itself as it has the correct id.
+      final savedEvent = _isEditing ? eventData : Event(
+        id: savedId, // use the actual ID from DB if it was an insert
+        title: eventData.title,
+        date: eventData.date,
+        startTime: eventData.startTime,
+        endTime: eventData.endTime,
+        location: eventData.location,
+        description: eventData.description,
+      );
+
+      if (mounted) {
+        Navigator.of(context).pop(savedEvent); // Pop with the saved/updated event
+      }
     }
   }
 
@@ -126,7 +171,7 @@ class _AddEventPageState extends State<AddEventPage> {
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Create Event'),
+        title: Text(_isEditing ? 'Edit Event' : 'Create Event'), // Dynamic title
         actions: [
           TextButton(
             onPressed: _saveEvent,
@@ -148,6 +193,7 @@ class _AddEventPageState extends State<AddEventPage> {
           child: ListView(
             children: <Widget>[
               TextFormField(
+                initialValue: _title, // Set initial value
                 decoration: InputDecoration(
                   labelText: 'Title',
                   hintText: 'Add title',
@@ -175,7 +221,7 @@ class _AddEventPageState extends State<AddEventPage> {
                   style: TextStyle(fontSize: 16, color: theme.colorScheme.onSurface),
                 ),
                 trailing: Icon(Icons.edit_calendar_outlined, color: theme.colorScheme.primary),
-                onTap: _pickDate, // Allow tapping to change date
+                onTap: _pickDate,
                 tileColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
               ),
@@ -210,28 +256,30 @@ class _AddEventPageState extends State<AddEventPage> {
                 ],
               ),
               const SizedBox(height: 20),
-               Divider(color: theme.dividerColor.withOpacity(0.5)),
+              Divider(color: theme.dividerColor.withOpacity(0.5)),
               const SizedBox(height: 10),
               TextFormField(
+                initialValue: _location, // Set initial value
                 decoration: InputDecoration(
                   labelText: 'Location (Optional)',
                   hintText: 'Add location',
                   icon: Icon(Icons.location_on_outlined, color: theme.colorScheme.secondary.withOpacity(0.8)),
-                  border: InputBorder.none, // Simpler look for optional fields
+                  border: InputBorder.none,
                   focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: theme.colorScheme.primary)),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12.0),
                 ),
                 onSaved: (value) => _location = value ?? '',
                 style: TextStyle(color: theme.colorScheme.onSurface),
-                 textCapitalization: TextCapitalization.words,
+                textCapitalization: TextCapitalization.words,
               ),
               const SizedBox(height: 10),
               TextFormField(
+                initialValue: _notes, // Set initial value
                 decoration: InputDecoration(
                   labelText: 'Notes (Optional)',
                   hintText: 'Add notes',
                   icon: Icon(Icons.notes_outlined, color: theme.colorScheme.secondary.withOpacity(0.8)),
-                  border: InputBorder.none, // Simpler look
+                  border: InputBorder.none,
                   focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: theme.colorScheme.primary)),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12.0),
                 ),
@@ -247,4 +295,3 @@ class _AddEventPageState extends State<AddEventPage> {
     );
   }
 }
-   
