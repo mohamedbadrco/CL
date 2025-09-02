@@ -1,7 +1,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:file_picker/file_picker.dart'; // Added for file picking
 import './database_helper.dart'; // Event class is in database_helper.dart
+import 'dart:io'; // Potentially for File, though PlatformFile is often used
 
 class AddEventPage extends StatefulWidget {
   final DateTime date;
@@ -22,6 +24,11 @@ class _AddEventPageState extends State<AddEventPage> {
   String _location = '';
   String _notes = '';
 
+  // Attachments state
+  List<PlatformFile> _newlySelectedAttachments = [];
+  List<EventAttachment> _existingAttachments = [];
+  List<EventAttachment> _initialAttachments = []; // To track deletions for existing events
+
   bool get _isEditing => widget.eventToEdit != null; // Helper to check mode
 
   @override
@@ -37,6 +44,7 @@ class _AddEventPageState extends State<AddEventPage> {
       _endTime = event.endTimeAsTimeOfDay;
       _location = event.location;
       _notes = event.description;
+      _loadExistingAttachments(event.id!);
     } else {
       // Default time setup for new event
       if (_startTime.hour == 23) {
@@ -45,6 +53,48 @@ class _AddEventPageState extends State<AddEventPage> {
         _endTime = TimeOfDay(hour: _startTime.hour + 1, minute: _startTime.minute);
       }
     }
+  }
+
+  Future<void> _loadExistingAttachments(int eventId) async {
+    final attachments = await DatabaseHelper.instance.getAttachmentsForEvent(eventId);
+    if (mounted) {
+      setState(() {
+        _existingAttachments = attachments;
+        _initialAttachments = List.from(attachments); // Keep a copy for diffing
+      });
+    }
+  }
+
+  Future<void> _pickFiles() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        type: FileType.any, // Or specific types: FileType.custom(allowedExtensions: ['jpg', 'pdf', 'doc']),
+      );
+
+      if (result != null) {
+        setState(() {
+          _newlySelectedAttachments.addAll(result.files);
+        });
+      }
+    } catch (e) {
+      // Handle exceptions from file picker
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking files: $e')),
+      );
+    }
+  }
+
+  void _removeNewAttachment(PlatformFile file) {
+    setState(() {
+      _newlySelectedAttachments.remove(file);
+    });
+  }
+
+  void _removeExistingAttachment(EventAttachment attachment) {
+    setState(() {
+      _existingAttachments.remove(attachment);
+    });
   }
 
   Future<void> _pickDate() async {
@@ -100,7 +150,7 @@ class _AddEventPageState extends State<AddEventPage> {
     }
   }
 
-  void _saveEvent() async { // Made async for database operations
+  void _saveEvent() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
 
@@ -112,7 +162,7 @@ class _AddEventPageState extends State<AddEventPage> {
       }
 
       final eventData = Event(
-        id: _isEditing ? widget.eventToEdit!.id : null, // Preserve ID if editing
+        id: _isEditing ? widget.eventToEdit!.id : null,
         title: _title,
         date: _selectedDate,
         startTime: '${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}',
@@ -121,20 +171,38 @@ class _AddEventPageState extends State<AddEventPage> {
         description: _notes,
       );
 
-      // Save to database
       final dbHelper = DatabaseHelper.instance;
+      int eventId;
+
       if (_isEditing) {
+        eventId = widget.eventToEdit!.id!;
         await dbHelper.updateEvent(eventData);
-        if (mounted) {
-          // Pop with the updated event for EventDetailsPage flow (via DayScheduleView)
-          Navigator.of(context).pop(eventData); 
+
+        // Handle deleted attachments
+        final removedDBAttachments = _initialAttachments
+            .where((initial) => !_existingAttachments.any((current) => current.id == initial.id))
+            .toList();
+        for (final attachment in removedDBAttachments) {
+          if (attachment.id != null) {
+            await dbHelper.deleteAttachment(attachment.id!);
+          }
         }
       } else {
-        await dbHelper.insertEvent(eventData);
-        if (mounted) {
-          // Pop with true for the FAB add flow
-          Navigator.of(context).pop(true); 
+        eventId = await dbHelper.insertEvent(eventData); // insertEvent returns the new ID
+      }
+
+      // Save new attachments
+      for (final file in _newlySelectedAttachments) {
+        if (file.path != null) {
+          await dbHelper.insertAttachment(eventId, file.path!);
         }
+      }
+
+      if (mounted) {
+        // Pop with the event (or true for older flow)
+        // For simplicity, we pop 'true' indicating success, EventDetailsPage will re-fetch.
+        // A more advanced flow would pop the updated/new Event object with attachments.
+        Navigator.of(context).pop(_isEditing ? eventData : true); 
       }
     }
   }
@@ -156,13 +224,44 @@ class _AddEventPageState extends State<AddEventPage> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
     );
 
+    // Combine existing and new attachments for display
+    List<Widget> attachmentWidgets = [];
+
+    // Display existing attachments
+    for (var attachment in _existingAttachments) {
+      attachmentWidgets.add(
+        ListTile(
+          leading: const Icon(Icons.attach_file),
+          title: Text(attachment.filePath.split(Platform.pathSeparator).last, overflow: TextOverflow.ellipsis), // Show filename
+          trailing: IconButton(
+            icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+            onPressed: () => _removeExistingAttachment(attachment),
+          ),
+        ),
+      );
+    }
+    // Display newly selected attachments
+    for (var file in _newlySelectedAttachments) {
+      attachmentWidgets.add(
+        ListTile(
+          leading: const Icon(Icons.attach_file_outlined), // Slightly different icon for new
+          title: Text(file.name,  overflow: TextOverflow.ellipsis),
+          trailing: IconButton(
+            icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+            onPressed: () => _removeNewAttachment(file),
+          ),
+        ),
+      );
+    }
+
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(_isEditing ? 'Edit Event' : 'Create Event'), // Dynamic title
+        title: Text(_isEditing ? 'Edit Event' : 'Create Event'),
         actions: [
           TextButton(
             onPressed: _saveEvent,
@@ -184,7 +283,7 @@ class _AddEventPageState extends State<AddEventPage> {
           child: ListView(
             children: <Widget>[
               TextFormField(
-                initialValue: _title, // Set initial value
+                initialValue: _title,
                 decoration: InputDecoration(
                   labelText: 'Title',
                   hintText: 'Add title',
@@ -250,7 +349,7 @@ class _AddEventPageState extends State<AddEventPage> {
               Divider(color: theme.dividerColor.withOpacity(0.5)),
               const SizedBox(height: 10),
               TextFormField(
-                initialValue: _location, // Set initial value
+                initialValue: _location,
                 decoration: InputDecoration(
                   labelText: 'Location (Optional)',
                   hintText: 'Add location',
@@ -265,7 +364,7 @@ class _AddEventPageState extends State<AddEventPage> {
               ),
               const SizedBox(height: 10),
               TextFormField(
-                initialValue: _notes, // Set initial value
+                initialValue: _notes,
                 decoration: InputDecoration(
                   labelText: 'Notes (Optional)',
                   hintText: 'Add notes',
@@ -279,6 +378,32 @@ class _AddEventPageState extends State<AddEventPage> {
                 maxLines: 3,
                 textCapitalization: TextCapitalization.sentences,
               ),
+              const SizedBox(height: 20),
+              Divider(color: theme.dividerColor.withOpacity(0.5)),
+              const SizedBox(height: 10),
+              Text('Attachments', style: theme.textTheme.titleMedium),
+              const SizedBox(height: 8),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.add_link),
+                label: const Text('Add Attachments'),
+                onPressed: _pickFiles,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.colorScheme.primaryContainer,
+                  foregroundColor: theme.colorScheme.onPrimaryContainer,
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (attachmentWidgets.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: Text(
+                    'No attachments added.',
+                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.6)),
+                    textAlign: TextAlign.center,
+                  ),
+                )
+              else
+                ...attachmentWidgets, // Display the list of attachments
             ],
           ),
         ),

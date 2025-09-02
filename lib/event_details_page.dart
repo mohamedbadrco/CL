@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import './database_helper.dart'; // Event class is in database_helper.dart
 import './add_event_page.dart'; // Import AddEventPage
+import 'dart:io'; // For basename
+import 'package:open_filex/open_filex.dart'; // Import for opening files
 
 class EventDetailsPage extends StatefulWidget {
   final Event event;
@@ -17,11 +19,24 @@ class EventDetailsPage extends StatefulWidget {
 
 class _EventDetailsPageState extends State<EventDetailsPage> {
   late Event _currentEvent;
+  List<EventAttachment> _attachments = [];
 
   @override
   void initState() {
     super.initState();
     _currentEvent = widget.event;
+    _loadAttachments();
+  }
+
+  Future<void> _loadAttachments() async {
+    if (_currentEvent.id != null) {
+      final attachments = await DatabaseHelper.instance.getAttachmentsForEvent(_currentEvent.id!);
+      if (mounted) {
+        setState(() {
+          _attachments = attachments;
+        });
+      }
+    }
   }
 
   Future<void> _deleteEvent(BuildContext context) async {
@@ -51,14 +66,33 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
       setState(() {
         _currentEvent = updatedEvent; // Update the UI of this page with new event details
       });
-      // DO NOT pop here. The page now shows the edited event.
+      await _loadAttachments(); // Refresh attachments list
+    }
+  }
+
+  Future<void> _openAttachmentFile(String filePath) async {
+    try {
+      final result = await OpenFilex.open(filePath);
+      if (result.type != ResultType.done) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not open file: ${result.message}')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error opening file: $e')),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final timeFormat = DateFormat.jm(); 
+    final timeFormat = DateFormat.jm();
     final dateFormat = DateFormat.yMMMMd();
 
     return Scaffold(
@@ -158,6 +192,39 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                 isMultiline: true,
               ),
             ],
+            if (_attachments.isNotEmpty) ...[
+              const SizedBox(height: 24), // Increased spacing before attachments section
+              Text(
+                'Attachments',
+                style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: _attachments.map((attachment) {
+                  String fileName = attachment.filePath.split(Platform.pathSeparator).last;
+                  return InkWell(
+                    onTap: () => _openAttachmentFile(attachment.filePath),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: Row(
+                        children: [
+                          Icon(Icons.attach_file, color: theme.colorScheme.primary, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              fileName,
+                              style: theme.textTheme.bodyLarge,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
           ],
         ),
       ),
@@ -187,8 +254,8 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
           padding: const EdgeInsets.only(left: 28.0), // Align with text after icon
           child: Text(
             value,
-            style: isMultiline 
-                ? theme.textTheme.bodyLarge?.copyWith(height: 1.4) 
+            style: isMultiline
+                ? theme.textTheme.bodyLarge?.copyWith(height: 1.4)
                 : theme.textTheme.bodyLarge,
           ),
         ),

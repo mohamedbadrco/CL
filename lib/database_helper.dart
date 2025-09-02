@@ -70,11 +70,40 @@ class Event {
   }
 }
 
+class EventAttachment {
+  final int? id;
+  final int eventId;
+  final String filePath;
+
+  EventAttachment({
+    this.id,
+    required this.eventId,
+    required this.filePath,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'eventId': eventId,
+      'filePath': filePath,
+    };
+  }
+
+  factory EventAttachment.fromMap(Map<String, dynamic> map) {
+    return EventAttachment(
+      id: map['id'] as int?,
+      eventId: map['eventId'] as int,
+      filePath: map['filePath'] as String,
+    );
+  }
+}
+
 class DatabaseHelper {
   static const _databaseName = "CalendarApp.db";
-  static const _databaseVersion = 1; // Increment if schema changes
+  static const _databaseVersion = 2; // Increment if schema changes
 
   static const tableEvents = 'events';
+  static const tableAttachments = 'attachments';
   static const columnId = 'id';
   static const columnTitle = 'title';
   static const columnDate = 'date';
@@ -82,6 +111,8 @@ class DatabaseHelper {
   static const columnEndTime = 'endTime';     // New
   static const columnLocation = 'location';   // New
   static const columnDescription = 'description';
+  static const columnEventId = 'eventId';
+  static const columnFilePath = 'filePath';
 
   DatabaseHelper._privateConstructor();
   static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
@@ -99,8 +130,7 @@ class DatabaseHelper {
     return await openDatabase(path,
       version: _databaseVersion,
       onCreate: _onCreate,
-      // onUpgrade is important for schema changes in future versions
-      // onUpgrade: _onUpgrade,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -116,14 +146,30 @@ class DatabaseHelper {
         $columnDescription TEXT
       )
       ''');
+    if (version >= 2) {
+      await db.execute('''
+        CREATE TABLE $tableAttachments (
+          $columnId INTEGER PRIMARY KEY AUTOINCREMENT,
+          $columnEventId INTEGER NOT NULL,
+          $columnFilePath TEXT NOT NULL,
+          FOREIGN KEY ($columnEventId) REFERENCES $tableEvents($columnId) ON DELETE CASCADE
+        )
+        ''');
+    }
   }
 
-  // Example for schema migration if you change _databaseVersion
-  // Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
-  //   if (oldVersion < 2) {
-  //     // await db.execute("ALTER TABLE $tableEvents ADD COLUMN new_column TEXT;");
-  //   }
-  // }
+  Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('''
+        CREATE TABLE $tableAttachments (
+          $columnId INTEGER PRIMARY KEY AUTOINCREMENT,
+          $columnEventId INTEGER NOT NULL,
+          $columnFilePath TEXT NOT NULL,
+          FOREIGN KEY ($columnEventId) REFERENCES $tableEvents($columnId) ON DELETE CASCADE
+        )
+        ''');
+    }
+  }
 
   Future<int> insertEvent(Event event) async {
     Database db = await instance.database;
@@ -169,6 +215,28 @@ class DatabaseHelper {
   Future<int> deleteEvent(int id) async {
     Database db = await instance.database;
     return await db.delete(tableEvents, where: '$columnId = ?', whereArgs: [id]);
+  }
+
+  Future<List<EventAttachment>> getAttachmentsForEvent(int eventId) async {
+    Database db = await instance.database;
+    final List<Map<String, dynamic>> maps = await db.query(tableAttachments,
+      where: '$columnEventId = ?',
+      whereArgs: [eventId],
+    );
+    return List.generate(maps.length, (i) => EventAttachment.fromMap(maps[i]));
+  }
+
+  Future<int> insertAttachment(int eventId, String filePath) async {
+    Database db = await instance.database;
+    return await db.insert(tableAttachments, {
+      columnEventId: eventId,
+      columnFilePath: filePath,
+    });
+  }
+
+  Future<int> deleteAttachment(int id) async {
+    Database db = await instance.database;
+    return await db.delete(tableAttachments, where: '$columnId = ?', whereArgs: [id]);
   }
 
   Future<void> resetDatabase() async {
