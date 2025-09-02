@@ -16,6 +16,7 @@ class DayScheduleView extends StatelessWidget {
   final TimeOfDay TaminTime; //e.g. TimeOfDay(hour: 0, minute: 0);
   final TimeOfDay TamaxTime; //e.g., TimeOfDay(hour: 23, minute: 59)
   final VoidCallback? onEventDeleted;
+  final void Function(Event updatedEvent)? onEventEdited; // Added for edits
 
   const DayScheduleView({
     super.key,
@@ -25,6 +26,7 @@ class DayScheduleView extends StatelessWidget {
     this.TaminTime = const TimeOfDay(hour: 0, minute: 0),
     this.TamaxTime = const TimeOfDay(hour: 23, minute: 59),
     this.onEventDeleted,
+    this.onEventEdited, // Added to constructor
   });
 
   @override
@@ -117,7 +119,16 @@ class DayScheduleView extends StatelessWidget {
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => EventDetailsPage(event: event, onEventChanged: (Event? updatedEvent) { if (updatedEvent == null) onEventDeleted?.call(); }), // Pass DB Event
+                  builder: (context) => EventDetailsPage(
+                    event: event, 
+                    onEventChanged: (Event? changedEvent) { 
+                      if (changedEvent == null) { // Event was deleted
+                        onEventDeleted?.call();
+                      } else { // Event was edited
+                        onEventEdited?.call(changedEvent);
+                      }
+                    }
+                  ),
                 ),
               );
             },
@@ -496,30 +507,58 @@ class _CalendarScreenState extends State<CalendarScreen> {
   /// in a [DayScheduleView].
   void _showDayEventsTimeSlotsPage(DateTime date) async {
     // Fetch events for the date directly from the database
+    // This ensures the DayScheduleView gets the most current data when it's (re)built.
     final dayKey = DateTime(date.year, date.month, date.day);
     final dayEvents = await dbHelper.getEventsForDate(dayKey);
 
-    if (!mounted) return; // Check if the widget is still in the tree
+    if (!mounted) return; // Check if the _CalendarScreenState widget is still in the tree
 
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => Scaffold(
+        builder: (BuildContext pageContext) => Scaffold( // Use a different context name for clarity
           appBar: AppBar(
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(pageContext).pop(),
             ),
             title: Text(
               DateFormat.yMMMd().format(date),
             ),
           ),
-          body: DayScheduleView( // Uses Event from database_helper.dart
-            date: date,
-            events: dayEvents, // Pass the fetched events
+          body: DayScheduleView(
+            date: date, 
+            events: dayEvents, // Pass the freshly fetched events
             hourHeight: _hourHeight,
             TaminTime: TimeOfDay(hour: _minHour, minute: 0),
             TamaxTime: TimeOfDay(hour: _maxHour, minute: 59),
-            onEventDeleted: () => _loadEventsForDate(date),
+            onEventDeleted: () async {
+              // 1. Update the central event store for the current day
+              await _loadEventsForDate(date);
+              
+              // 2. Refresh the DayScheduleView page
+              if (mounted) { // Check mounted status of _CalendarScreenState
+                Navigator.of(pageContext).pop(); // Pop the current DayScheduleView
+                _showDayEventsTimeSlotsPage(date);    // Push a new one for the same date
+              }
+            },
+            onEventEdited: (Event editedEvent) async {
+              final originalDateKey = DateTime(date.year, date.month, date.day);
+              final editedEventDateKey = DateTime(editedEvent.date.year, editedEvent.date.month, editedEvent.date.day);
+
+              // 1. Update central event store for the edited event's (potentially new) date
+              await _loadEventsForDate(editedEvent.date);
+
+              // 2. If event's date changed, update central store for the original date too
+              if (originalDateKey != editedEventDateKey) {
+                await _loadEventsForDate(date);
+              }
+              
+              // 3. Refresh the DayScheduleView page for its original date
+              if (mounted) { // Check mounted status of _CalendarScreenState
+                Navigator.of(pageContext).pop(); // Pop the current DayScheduleView
+                _showDayEventsTimeSlotsPage(date); // Push a new DayScheduleView for the original date
+              }
+            },
           ),
         ),
       ),
@@ -773,7 +812,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => EventDetailsPage(event: event, onEventChanged: (Event? updatedEvent) { if (updatedEvent == null) _loadEventsForDate(day); }), // Pass DB Event
+                  builder: (context) => EventDetailsPage(
+                    event: event, 
+                    onEventChanged: (Event? changedEvent) { 
+                      if (changedEvent == null) { // Event deleted
+                         // This is week view, onEventDeleted on DayScheduleView is not wired up here.
+                         // We need to call _loadEventsForDate for the 'day' of this schedule stack.
+                        _loadEventsForDate(day);
+                      } else { // Event edited
+                        // Similarly, call _loadEventsForDate for the original day and the new day.
+                        _loadEventsForDate(changedEvent.date);
+                        if (DateTime(changedEvent.date.year, changedEvent.date.month, changedEvent.date.day) != 
+                            DateTime(day.year, day.month, day.day)) {
+                           _loadEventsForDate(day);
+                        }
+                      }
+                    }
+                  ),
                 ),
               );
             },
