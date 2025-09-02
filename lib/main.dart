@@ -987,23 +987,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween, // Ensures space between title and buttons
                 children: [
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left, size: 28),
-                    onPressed: _goToPreviousMonth,
-                  ),
                   Text(
                     monthNameDisplay,
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_right, size: 28),
-                    onPressed: _goToNextMonth,
+                  Row( // Group buttons together
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.chevron_left, size: 28),
+                        onPressed: _goToPreviousMonth,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.chevron_right, size: 28),
+                        onPressed: _goToNextMonth,
+                      ),
+                    ],
                   ),
-                  const Spacer(),
                 ],
               ),
             ),
