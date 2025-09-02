@@ -123,27 +123,18 @@ class _AddEventPageState extends State<AddEventPage> {
 
       // Save to database
       final dbHelper = DatabaseHelper.instance;
-      int savedId;
       if (_isEditing) {
-        savedId = await dbHelper.updateEvent(eventData);
+        await dbHelper.updateEvent(eventData);
+        if (mounted) {
+          // Pop with the updated event for EventDetailsPage flow (via DayScheduleView)
+          Navigator.of(context).pop(eventData); 
+        }
       } else {
-        savedId = await dbHelper.insertEvent(eventData);
-      }
-      
-      // If inserting, the id in eventData is null, so we create a new Event object with the returned id.
-      // If updating, savedId is the count of rows affected, ideally 1. We can return the eventData itself as it has the correct id.
-      final savedEvent = _isEditing ? eventData : Event(
-        id: savedId, // use the actual ID from DB if it was an insert
-        title: eventData.title,
-        date: eventData.date,
-        startTime: eventData.startTime,
-        endTime: eventData.endTime,
-        location: eventData.location,
-        description: eventData.description,
-      );
-
-      if (mounted) {
-        Navigator.of(context).pop(savedEvent); // Pop with the saved/updated event
+        await dbHelper.insertEvent(eventData);
+        if (mounted) {
+          // Pop with true for the FAB add flow
+          Navigator.of(context).pop(true); 
+        }
       }
     }
   }

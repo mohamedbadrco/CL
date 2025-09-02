@@ -15,8 +15,7 @@ class DayScheduleView extends StatelessWidget {
   final double hourHeight; // Height of each hour slot in the timeline
   final TimeOfDay TaminTime; //e.g. TimeOfDay(hour: 0, minute: 0);
   final TimeOfDay TamaxTime; //e.g., TimeOfDay(hour: 23, minute: 59)
-  final VoidCallback? onEventDeleted;
-  final void Function(Event updatedEvent)? onEventEdited; // Added for edits
+  final VoidCallback? onEventChanged; // Changed from onEventDeleted
 
   const DayScheduleView({
     super.key,
@@ -25,8 +24,7 @@ class DayScheduleView extends StatelessWidget {
     this.hourHeight = 60.0, // e.g., 60 pixels per hour
     this.TaminTime = const TimeOfDay(hour: 0, minute: 0),
     this.TamaxTime = const TimeOfDay(hour: 23, minute: 59),
-    this.onEventDeleted,
-    this.onEventEdited, // Added to constructor
+    this.onEventChanged, // Changed from onEventDeleted
   });
 
   @override
@@ -116,21 +114,18 @@ class DayScheduleView extends StatelessWidget {
           left: 55, // Shifted right a bit
           right: 10,
           child: GestureDetector(
-            onTap: () {
-              Navigator.of(context).push(
+            onTap: () async {
+              await Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => EventDetailsPage(
-                    event: event, 
-                    onEventChanged: (Event? changedEvent) { 
-                      if (changedEvent == null) { // Event was deleted
-                        onEventDeleted?.call();
-                      } else { // Event was edited
-                        onEventEdited?.call(changedEvent);
-                      }
-                    }
-                  ),
+                  builder: (context) => EventDetailsPage(event: event, onEventChanged: (Event? updatedEvent) {
+                    // This onEventChanged is called by EventDetailsPage AFTER DB operations.
+                    // It should trigger a reload in CalendarScreen.
+                    onEventChanged?.call();
+                    // EventDetailsPage will pop itself.
+                  }),
                 ),
               );
+              // Data re-fetch is handled by the onEventChanged callback chain
             },
             child: Container(
               height: eventHeight,
@@ -249,10 +244,6 @@ class _CalendarAppState extends State<CalendarApp> {
   }
 }
 
-/// A screen that displays a calendar with month and week views.
-///
-/// Allows users to navigate between months/weeks, select dates,
-/// view events, and add new events.
 class CalendarScreen extends StatefulWidget {
   final ThemeMode themeMode;
   final VoidCallback onToggleTheme;
@@ -267,10 +258,6 @@ class CalendarScreen extends StatefulWidget {
   State<CalendarScreen> createState() => _CalendarScreenState();
 }
 
-/// State for the [CalendarScreen].
-///
-/// Manages the current view (month or week), selected dates,
-/// event data, and navigation between different time periods.
 class _CalendarScreenState extends State<CalendarScreen> {
   static const int _initialPageIndex = 10000;
   static const Duration _pageScrollDuration = Duration(milliseconds: 300);
@@ -281,7 +268,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   DateTime _focusedMonth = DateTime(DateTime.now().year, DateTime.now().month);
   DateTime? _selectedDate;
-  // _events map now holds Event objects from database_helper.dart
   Map<DateTime, List<Event>> _events = {};
   DateTime _today = DateTime(
     DateTime.now().year,
@@ -301,18 +287,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
   final int _maxHour = 23;
   final double _timeLabelWidth = 50.0;
 
-  final dbHelper = DatabaseHelper.instance; // Instance of DatabaseHelper
+  final dbHelper = DatabaseHelper.instance;
 
   @override
   void initState() {
     super.initState();
-    _selectedDate = _today; // Select today by default
+    _selectedDate = _today;
     _focusedWeekStart = _today.subtract(Duration(days: _today.weekday % 7));
     _focusedMonth = DateTime(_today.year, _today.month);
 
     _monthPageController = PageController(initialPage: _calculateMonthPageIndex(_focusedMonth));
     _weekPageController = PageController(initialPage: _calculateWeekPageIndex(_focusedWeekStart));
-    _loadEventsFromDb(); // Load all events from DB
+    _loadEventsFromDb();
   }
 
   @override
@@ -322,149 +308,106 @@ class _CalendarScreenState extends State<CalendarScreen> {
     super.dispose();
   }
 
-  /// Loads all events from the database and updates the state.
   Future<void> _loadEventsFromDb() async {
     final allEvents = await dbHelper.getAllEvents();
     final Map<DateTime, List<Event>> newEventsMap = {};
     for (var event in allEvents) {
-      // Normalize date to DateTime(year, month, day) for map key
       final key = DateTime(event.date.year, event.date.month, event.date.day);
       newEventsMap.putIfAbsent(key, () => []).add(event);
     }
-    if (mounted) { // Check if the widget is still in the tree
+    if (mounted) {
       setState(() {
         _events = newEventsMap;
       });
     }
   }
 
-  /// Loads events for a specific [date] from the database and updates the state.
-  Future<void> _loadEventsForDate(DateTime date) async {
-    final key = DateTime(date.year, date.month, date.day);
-    final dayEvents = await dbHelper.getEventsForDate(key);
-     if (mounted) {
-      setState(() {
-        _events[key] = dayEvents;
-      });
-    }
-  }
-
-  /// Resets the database and reloads all events.
   Future<void> _resetDatabase() async {
     await dbHelper.resetDatabase();
-    if (mounted) {
-      setState(() {
-        _events.clear();
-      });
-    }
-    _loadEventsFromDb();
+    // No need to clear _events locally, _loadEventsFromDb will overwrite it.
+    await _loadEventsFromDb(); // Await the loading after reset.
   }
 
-  /// Calculates the page index for the month view based on the given [month].
   int _calculateMonthPageIndex(DateTime month) {
-    // Calculate the difference in months from a fixed reference, e.g., _today's month
-    // This reference (_today) should be consistent with how _getDateFromMonthPageIndex is calculated
     final referenceMonth = DateTime(_today.year, _today.month);
     return _initialPageIndex + (month.year - referenceMonth.year) * 12 + (month.month - referenceMonth.month);
   }
 
-  /// Gets the date from the month page index.
   DateTime _getDateFromMonthPageIndex(int pageIndex) {
     final monthOffset = pageIndex - _initialPageIndex;
-    // Use the same reference month logic
     final referenceMonth = DateTime(_today.year, _today.month);
     return DateTime(referenceMonth.year, referenceMonth.month + monthOffset, 1);
   }
 
-  /// Calculates the page index for the week view based on the [weekStart] date.
   int _calculateWeekPageIndex(DateTime weekStart) {
     DateTime todayWeekStart = _today.subtract(Duration(days: _today.weekday % 7));
     return _initialPageIndex + (weekStart.difference(todayWeekStart).inDays ~/ 7);
   }
 
-  /// Gets the date from the week page index.
   DateTime _getDateFromWeekPageIndex(int pageIndex) {
     final weekOffset = pageIndex - _initialPageIndex;
     DateTime todayWeekStart = _today.subtract(Duration(days: _today.weekday % 7));
     return todayWeekStart.add(Duration(days: weekOffset * 7));
   }
 
-  /// Navigates to the previous month in the month view.
   void _goToPreviousMonth() {
     if (_monthPageController.hasClients) {
         _monthPageController.previousPage(duration: _pageScrollDuration, curve: _pageScrollCurve);
     }
   }
 
-  /// Navigates to the next month in the month view.
   void _goToNextMonth() {
     if (_monthPageController.hasClients) {
         _monthPageController.nextPage(duration: _pageScrollDuration, curve: _pageScrollCurve);
     }
   }
 
-  /// Navigates to the previous week in the week view.
   void _goToPreviousWeek() {
     if (_weekPageController.hasClients) {
       _weekPageController.previousPage(duration: _pageScrollDuration, curve: _pageScrollCurve);
     }
   }
 
-  /// Navigates to the next week in the week view.
   void _goToNextWeek() {
     if (_weekPageController.hasClients) {
       _weekPageController.nextPage(duration: _pageScrollDuration, curve: _pageScrollCurve);
     }
   }
 
-  /// Toggles between month and week view.
-  ///
-  /// Resets the [_today] date to the current day and updates
-  /// page controllers and focused dates accordingly.
   void _toggleView() {
     setState(() {
       final DateTime actualNow = DateTime.now();
       _today = DateTime(actualNow.year, actualNow.month, actualNow.day);
-
       _isWeekView = !_isWeekView;
 
       if (_isWeekView) {
-        // Switching to Week View
         DateTime weekViewAnchorDate = _selectedDate ?? _today;
         _focusedWeekStart = weekViewAnchorDate.subtract(Duration(days: weekViewAnchorDate.weekday % 7));
-        
         _weekPageController.dispose();
         _weekPageController = PageController(initialPage: _calculateWeekPageIndex(_focusedWeekStart));
-        
       } else {
-        // Switching to Month View
-        _focusedMonth = DateTime(_today.year, _today.month); 
+        _focusedMonth = DateTime(_selectedDate?.year ?? _today.year, _selectedDate?.month ?? _today.month);
         int targetMonthPageIndex = _calculateMonthPageIndex(_focusedMonth);
-
-        _monthPageController.dispose(); 
+        _monthPageController.dispose();
         _monthPageController = PageController(initialPage: targetMonthPageIndex);
 
-        // Ensure _selectedDate is valid for the new _focusedMonth
         if (_selectedDate != null &&
             (_selectedDate!.year != _focusedMonth.year || _selectedDate!.month != _focusedMonth.month)) {
           DateTime newSelectedCandidate = DateTime(_focusedMonth.year, _focusedMonth.month, _today.day);
-          if (newSelectedCandidate.month != _focusedMonth.month) { 
+          if (newSelectedCandidate.month != _focusedMonth.month) {
               newSelectedCandidate = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
           }
           _selectedDate = newSelectedCandidate;
-        } else if (_selectedDate == null) { 
+        } else if (_selectedDate == null) {
             DateTime newSelectedCandidate = DateTime(_focusedMonth.year, _focusedMonth.month, _today.day);
             if (newSelectedCandidate.month != _focusedMonth.month) {
                 newSelectedCandidate = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
             }
             _selectedDate = newSelectedCandidate;
         }
-        
-        // Add post frame callback to ensure jumpToPage
+
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted && _monthPageController.hasClients) {
-            // Check if the current page is already the target page to avoid unnecessary jumps
-            // PageController.page can be null initially or a double.
             final currentPage = _monthPageController.page?.round();
             if (currentPage != targetMonthPageIndex) {
                  _monthPageController.jumpToPage(targetMonthPageIndex);
@@ -472,103 +415,60 @@ class _CalendarScreenState extends State<CalendarScreen> {
           }
         });
       }
+      _loadEventsFromDb(); 
     });
   }
 
-  /// Adds a new event for the given [initialDate].
-  ///
-  /// Opens the [AddEventPage] and reloads events for the date
-  /// if a new event is added.
   void _addEvent(DateTime initialDate) async {
-    // AddEventPage should return the new Event object (from database_helper.dart)
-    final newEventFromPage = await Navigator.of(context).push<Event>(
+    // AddEventPage will pop with `true` if an event was added.
+    // It is responsible for saving the event to the database.
+    final bool? eventWasAdded = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        // Pass a callback to AddEventPage if it needs to inform about save
         builder: (context) => AddEventPage(date: initialDate),
       ),
     );
 
-    if (newEventFromPage != null) {
-      await dbHelper.insertEvent(newEventFromPage);
-      // Reload events for the specific date to reflect the new event
-      _loadEventsForDate(newEventFromPage.date);
-      // Optionally, if _selectedDate should change to the new event's date:
-      if (mounted) {
-        setState(() {
-          _selectedDate = DateTime(newEventFromPage.date.year, newEventFromPage.date.month, newEventFromPage.date.day);
-        });
-      }
+    if (eventWasAdded == true) {
+      await _loadEventsFromDb(); // Refresh data from the database
     }
   }
 
-  /// Shows a page with a time slot view for the given [date].
-  ///
-  /// Fetches events for the date from the database and displays them
-  /// in a [DayScheduleView].
   void _showDayEventsTimeSlotsPage(DateTime date) async {
-    // Fetch events for the date directly from the database
-    // This ensures the DayScheduleView gets the most current data when it's (re)built.
     final dayKey = DateTime(date.year, date.month, date.day);
-    final dayEvents = await dbHelper.getEventsForDate(dayKey);
+    final dayEvents = List<Event>.from(_events[dayKey] ?? []);
 
-    if (!mounted) return; // Check if the _CalendarScreenState widget is still in the tree
+    if (!mounted) return;
 
-    Navigator.of(context).push(
+    // EventDetailsPage (pushed from DayScheduleView) will call _loadEventsFromDb
+    // via its onEventChanged callback and then pop itself.
+    // So, no need to await a result or call _loadEventsFromDb after this push.
+    await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (BuildContext pageContext) => Scaffold( // Use a different context name for clarity
+        builder: (context) => Scaffold(
           appBar: AppBar(
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
-              onPressed: () => Navigator.of(pageContext).pop(),
+              onPressed: () => Navigator.of(context).pop(),
             ),
             title: Text(
               DateFormat.yMMMd().format(date),
             ),
           ),
           body: DayScheduleView(
-            date: date, 
-            events: dayEvents, // Pass the freshly fetched events
+            date: date,
+            events: dayEvents,
             hourHeight: _hourHeight,
             TaminTime: TimeOfDay(hour: _minHour, minute: 0),
             TamaxTime: TimeOfDay(hour: _maxHour, minute: 59),
-            onEventDeleted: () async {
-              // 1. Update the central event store for the current day
-              await _loadEventsForDate(date);
-              
-              // 2. Refresh the DayScheduleView page
-              if (mounted) { // Check mounted status of _CalendarScreenState
-                Navigator.of(pageContext).pop(); // Pop the current DayScheduleView
-                _showDayEventsTimeSlotsPage(date);    // Push a new one for the same date
-              }
-            },
-            onEventEdited: (Event editedEvent) async {
-              final originalDateKey = DateTime(date.year, date.month, date.day);
-              final editedEventDateKey = DateTime(editedEvent.date.year, editedEvent.date.month, editedEvent.date.day);
-
-              // 1. Update central event store for the edited event's (potentially new) date
-              await _loadEventsForDate(editedEvent.date);
-
-              // 2. If event's date changed, update central store for the original date too
-              if (originalDateKey != editedEventDateKey) {
-                await _loadEventsForDate(date);
-              }
-              
-              // 3. Refresh the DayScheduleView page for its original date
-              if (mounted) { // Check mounted status of _CalendarScreenState
-                Navigator.of(pageContext).pop(); // Pop the current DayScheduleView
-                _showDayEventsTimeSlotsPage(date); // Push a new DayScheduleView for the original date
-              }
-            },
+            onEventChanged: _loadEventsFromDb, // Pass _loadEventsFromDb directly
           ),
         ),
       ),
     );
+    // REMOVED: await _loadEventsFromDb(); 
+    // This was redundant as EventDetailsPage/AddEventPage triggers the reload.
   }
 
-  /// Builds the widget for a single month page in the month view.
-  ///
-  /// Displays the days of the [monthToDisplay], highlighting the selected date,
-  /// today's date, and days with events.
   Widget _buildMonthPageWidget(BuildContext context, DateTime monthToDisplay) {
     final theme = Theme.of(context);
     final prevNextMonthTextColor = theme.colorScheme.onSurface.withOpacity(0.38);
@@ -618,7 +518,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
           _selectedDate!.month == date.month &&
           _selectedDate!.day == date.day;
       final isTodayDate = date.year == _today.year && date.month == _today.month && date.day == _today.day;
-      // Use the _events map which is populated from the DB
       final dayKey = DateTime(date.year, date.month, date.day);
       final hasEvent = _events.containsKey(dayKey) && _events[dayKey]!.isNotEmpty;
 
@@ -732,7 +631,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  /// Builds the stack of time labels for the week view.
   Widget _buildTimeLabelStack(BuildContext context) {
     final theme = Theme.of(context);
     final timeLabelColor = theme.colorScheme.onSurface.withOpacity(0.6);
@@ -762,9 +660,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return Stack(children: timeLabels);
   }
 
-  /// Builds the schedule view for a single day within the week view.
-  ///
-  /// Displays events for the given [day] within a column of [columnWidth].
   Widget _buildSingleDayScheduleStack(BuildContext context, DateTime day, List<Event> events, double columnWidth) {
     final theme = Theme.of(context);
     List<Widget> stackChildren = [];
@@ -784,13 +679,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
       );
     }
 
-    for (var event in events) { // event is from database_helper.dart
+    for (var event in events) { 
       final startMinutes = event.startTimeAsTimeOfDay.hour * 60 + event.startTimeAsTimeOfDay.minute;
       final endMinutes = event.endTimeAsTimeOfDay.hour * 60 + event.endTimeAsTimeOfDay.minute;
       final minHourMinutes = _minHour * 60;
 
       final topPosition = ((startMinutes - minHourMinutes) / 60.0) * _hourHeight;
-      final eventDurationInMinutes = endMinutes - startMinutes; // durationInMinutes is a getter in DB Event
+      final eventDurationInMinutes = endMinutes - startMinutes; 
       double eventHeight = (eventDurationInMinutes / 60.0) * _hourHeight;
 
       if (eventHeight < _hourHeight / 3) {
@@ -809,26 +704,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
           width: columnWidth - 4.0,
           height: eventHeight,
           child: GestureDetector(
-            onTap: () {
-              Navigator.of(context).push(
+            onTap: () async {
+              await Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => EventDetailsPage(
-                    event: event, 
-                    onEventChanged: (Event? changedEvent) { 
-                      if (changedEvent == null) { // Event deleted
-                         // This is week view, onEventDeleted on DayScheduleView is not wired up here.
-                         // We need to call _loadEventsForDate for the 'day' of this schedule stack.
-                        _loadEventsForDate(day);
-                      } else { // Event edited
-                        // Similarly, call _loadEventsForDate for the original day and the new day.
-                        _loadEventsForDate(changedEvent.date);
-                        if (DateTime(changedEvent.date.year, changedEvent.date.month, changedEvent.date.day) != 
-                            DateTime(day.year, day.month, day.day)) {
-                           _loadEventsForDate(day);
-                        }
-                      }
-                    }
-                  ),
+                  builder: (context) => EventDetailsPage(event: event, onEventChanged: (Event? updatedEvent) {
+                     // This callback is _loadEventsFromDb from CalendarScreen
+                     _loadEventsFromDb(); 
+                     // EventDetailsPage will pop itself after calling this.
+                  }), 
                 ),
               );
             },
@@ -857,9 +740,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return Stack(children: stackChildren);
   }
 
-  /// Builds the widget for a single week page in the week view.
-  ///
-  /// Displays the days of the [weekStart] date, with time labels and events.
   Widget _buildWeekPageWidget(BuildContext context, DateTime weekStart) {
     final theme = Theme.of(context);
     final borderColor = theme.dividerColor;
@@ -920,9 +800,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ),
                   ...weekDates.map((date) {
                     final dayKey = DateTime(date.year, date.month, date.day);
-                    // Use the _events map which is populated from the DB
                     final daySpecificEvents = _events[dayKey] ?? [];
-                    // Ensure sorting if not already sorted (DB query might sort, but good to be sure)
                      daySpecificEvents.sort((a, b) => (a.startTimeAsTimeOfDay.hour * 60 + a.startTimeAsTimeOfDay.minute)
                         .compareTo(b.startTimeAsTimeOfDay.hour * 60 + b.startTimeAsTimeOfDay.minute));
 
@@ -956,18 +834,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final weekDayNames = DateFormat.EEEE().dateSymbols.STANDALONENARROWWEEKDAYS;
-
     final monthNameDisplay = DateFormat.yMMMM().format(_focusedMonth);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isWeekView ? 'Week View' : 'Month View'),
+        title: Text(_isWeekView ? '${DateFormat.MMMM().format(_focusedWeekStart)} - ${DateFormat.MMMM().format(_focusedWeekStart.add(const Duration(days:6)))}' : monthNameDisplay),
         centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _resetDatabase,
-            tooltip: 'Reset Database',
+            tooltip: 'Reset Database & Refresh Events',
           ),
           IconButton(
             icon: Icon(
@@ -992,21 +869,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                  Text(
-                    monthNameDisplay,
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const Spacer(),
+                  const Spacer(), 
                   IconButton(
                     icon: const Icon(Icons.chevron_left, size: 28),
                     onPressed: _goToPreviousMonth,
+                  ),
+                   Text( 
+                    monthNameDisplay,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.chevron_right, size: 28),
                     onPressed: _goToNextMonth,
                   ),
+                   const Spacer(), 
                 ],
               ),
             ),
@@ -1039,8 +917,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       onPageChanged: (pageIndex) {
                         setState(() {
                           _focusedWeekStart = _getDateFromWeekPageIndex(pageIndex);
-                           // Optionally, load events if not already loaded for the new view
-                           // For week view, _buildWeekPageWidget handles fetching/filtering from _events
                         });
                       },
                       itemBuilder: (context, pageIndex) {
@@ -1054,17 +930,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         setState(() {
                           final newFocusedMonth = _getDateFromMonthPageIndex(pageIndex);
                           _focusedMonth = newFocusedMonth;
-                           if (newFocusedMonth.year == _today.year && newFocusedMonth.month == _today.month) {
-                            if (_selectedDate == null || _selectedDate!.month != newFocusedMonth.month || _selectedDate!.year != newFocusedMonth.year) {
-                                _selectedDate = _today;
-                            }
-                          } else {
-                             if(_selectedDate != null && (_selectedDate!.month != newFocusedMonth.month || _selectedDate!.year != newFocusedMonth.year) ){
-                               _selectedDate = null;
-                             }
-                          }
-                          // Events are loaded globally in initState and updated on add/edit/delete
-                          // No need to reload all events on month change unless your logic requires it
                         });
                       },
                       itemBuilder: (context, pageIndex) {
