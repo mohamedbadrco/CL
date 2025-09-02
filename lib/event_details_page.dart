@@ -1,4 +1,3 @@
-
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
@@ -6,50 +5,65 @@ import 'package:intl/intl.dart';
 import './database_helper.dart'; // Event class is in database_helper.dart
 import './add_event_page.dart'; // Import AddEventPage
 
-class EventDetailsPage extends StatelessWidget {
+class EventDetailsPage extends StatefulWidget {
   final Event event;
-  final Function(Event? event)? onEventChanged; // Updated callback for edit/delete
+  final Function(Event? event)? onEventChanged; // Callback for edit/delete
 
   const EventDetailsPage({super.key, required this.event, this.onEventChanged});
 
+  @override
+  State<EventDetailsPage> createState() => _EventDetailsPageState();
+}
+
+class _EventDetailsPageState extends State<EventDetailsPage> {
+  late Event _currentEvent;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentEvent = widget.event;
+  }
+
   Future<void> _deleteEvent(BuildContext context) async {
-    if (event.id != null) {
-      await DatabaseHelper.instance.deleteEvent(event.id!);
-      onEventChanged?.call(null); // Pass null to indicate deletion
-      if (context.mounted) {
-        Navigator.of(context).pop();
+    if (_currentEvent.id != null) {
+      await DatabaseHelper.instance.deleteEvent(_currentEvent.id!);
+      widget.onEventChanged?.call(null); // Pass null to indicate deletion
+      if (mounted) {
+        Navigator.of(context).pop(); // Pop EventDetailsPage
       }
     }
   }
 
   Future<void> _editEvent(BuildContext context) async {
-    if (!context.mounted) return;
+    if (!mounted) return;
+    // AddEventPage will pop with the updated Event object
     final updatedEvent = await Navigator.of(context).push<Event>(
       MaterialPageRoute(
         builder: (context) => AddEventPage(
-          date: event.date, // Initial date, can be re-picked in AddEventPage
-          eventToEdit: event,
+          date: _currentEvent.date,
+          eventToEdit: _currentEvent,
         ),
       ),
     );
 
-    if (updatedEvent != null && context.mounted) {
-      onEventChanged?.call(updatedEvent);
-      // Pop this details page because the underlying data has changed.
-      // The previous screen (e.g., calendar or day view) will handle reloading.
-      Navigator.of(context).pop();
+    if (updatedEvent != null && mounted) { // If AddEventPage returned an event (i.e., was saved)
+      widget.onEventChanged?.call(updatedEvent); // Notify listener to refresh data in the background
+      setState(() {
+        _currentEvent = updatedEvent; // Update the UI of this page with new event details
+      });
+      // DO NOT pop here. The page now shows the edited event.
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context); // Get theme from context
-    final timeFormat = DateFormat.jm(); // e.g., 5:08 PM
-    final dateFormat = DateFormat.yMMMMd(); // e.g., September 10, 2023
+    final theme = Theme.of(context);
+    final timeFormat = DateFormat.jm(); 
+    final dateFormat = DateFormat.yMMMMd();
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(event.title),
+        title: Text(_currentEvent.title),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
@@ -80,8 +94,8 @@ class EventDetailsPage extends StatelessWidget {
                       TextButton(
                         child: Text('Delete', style: TextStyle(color: Theme.of(dialogContext).colorScheme.error)),
                         onPressed: () {
-                          Navigator.of(dialogContext).pop();
-                          _deleteEvent(context);
+                          Navigator.of(dialogContext).pop(); // Close dialog
+                          _deleteEvent(context); // Will call onEventChanged and pop EventDetailsPage
                         },
                       ),
                     ],
@@ -101,7 +115,7 @@ class EventDetailsPage extends StatelessWidget {
               context,
               icon: Icons.calendar_today_outlined,
               label: 'Date',
-              value: dateFormat.format(event.date),
+              value: dateFormat.format(_currentEvent.date),
             ),
             const SizedBox(height: 16),
             Row(
@@ -111,7 +125,7 @@ class EventDetailsPage extends StatelessWidget {
                     context,
                     icon: Icons.access_time_outlined,
                     label: 'Start Time',
-                    value: timeFormat.format(DateTime(event.date.year, event.date.month, event.date.day, event.startTimeAsTimeOfDay.hour, event.startTimeAsTimeOfDay.minute)),
+                    value: timeFormat.format(DateTime(_currentEvent.date.year, _currentEvent.date.month, _currentEvent.date.day, _currentEvent.startTimeAsTimeOfDay.hour, _currentEvent.startTimeAsTimeOfDay.minute)),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -120,27 +134,27 @@ class EventDetailsPage extends StatelessWidget {
                     context,
                     icon: Icons.access_time_filled_outlined,
                     label: 'End Time',
-                    value: timeFormat.format(DateTime(event.date.year, event.date.month, event.date.day, event.endTimeAsTimeOfDay.hour, event.endTimeAsTimeOfDay.minute)),
+                    value: timeFormat.format(DateTime(_currentEvent.date.year, _currentEvent.date.month, _currentEvent.date.day, _currentEvent.endTimeAsTimeOfDay.hour, _currentEvent.endTimeAsTimeOfDay.minute)),
                   ),
                 ),
               ],
             ),
-            if (event.location.isNotEmpty) ...[
+            if (_currentEvent.location.isNotEmpty) ...[
               const SizedBox(height: 16),
               _buildDetailItem(
                 context,
                 icon: Icons.location_on_outlined,
                 label: 'Location',
-                value: event.location,
+                value: _currentEvent.location,
               ),
             ],
-            if (event.description.isNotEmpty) ...[
+            if (_currentEvent.description.isNotEmpty) ...[
               const SizedBox(height: 16),
               _buildDetailItem(
                 context,
                 icon: Icons.notes_outlined,
                 label: 'Notes',
-                value: event.description,
+                value: _currentEvent.description,
                 isMultiline: true,
               ),
             ],
