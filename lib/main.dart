@@ -1105,14 +1105,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final theme = Theme.of(context);
     final weekDayNames =
         DateFormat.EEEE().dateSymbols.STANDALONENARROWWEEKDAYS;
+    final weekNameDisplay = DateFormat.yMMMM().format(_focusedMonth);
     final monthNameDisplay = DateFormat.yMMMM().format(_focusedMonth);
+
+
 
     return Scaffold(
       appBar: AppBar(
         title: Text(_isWeekView 
-            ? '${DateFormat.MMMM().format(_focusedWeekStart)} - ${DateFormat.MMMM().format(_focusedWeekStart.add(const Duration(days: 6)))}'
+            ? weekNameDisplay
             : monthNameDisplay), // inter from theme (via appBarTheme.titleTextStyle)
-        centerTitle: true,
+        // centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
