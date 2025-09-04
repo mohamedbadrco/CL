@@ -2,18 +2,19 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // For date formatting
+import 'package:google_fonts/google_fonts.dart'; // Added for Google Fonts
 import './add_event_page.dart'; // Import the new AddEventPage
 import './event_details_page.dart'; // Import the EventDetailsPage
 import './database_helper.dart'; // Import DatabaseHelper
+import './api/gemini_service.dart'; // Import GeminiService
 
-// DayScheduleView remains largely the same but its onEventChanged will be used by DayEventsScreen
 class DayScheduleView extends StatelessWidget {
   final DateTime date;
   final List<Event> events;
   final double hourHeight;
   final TimeOfDay TaminTime;
   final TimeOfDay TamaxTime;
-  final VoidCallback? onEventChanged; // Callback to notify parent (DayEventsScreen) of changes
+  final VoidCallback? onEventChanged;
 
   const DayScheduleView({
     super.key,
@@ -80,7 +81,7 @@ class DayScheduleView extends StatelessWidget {
             child: Text(
               DateFormat('h a')
                   .format(DateTime(date.year, date.month, date.day, hour)),
-              style: TextStyle(fontSize: 12, color: timeLabelColor),
+              style: GoogleFonts.openSans(textStyle: TextStyle(fontSize: 12, color: timeLabelColor, fontWeight: FontWeight.w800)),
             ),
           ),
         ),
@@ -95,6 +96,7 @@ class DayScheduleView extends StatelessWidget {
     final theme = Theme.of(context);
     final eventBgColor = theme.colorScheme.secondaryContainer;
     final eventTextColor = theme.colorScheme.onSecondaryContainer;
+    final geminiService = GeminiService();
 
     for (var event in dayEvents) {
       final double topOffset = _calculateTopOffset(event.startTimeAsTimeOfDay);
@@ -107,6 +109,7 @@ class DayScheduleView extends StatelessWidget {
           right: 10,
           child: GestureDetector(
             onTap: () async {
+              await geminiService.sendSpecificEventDetailsToGemini(event.date, event);
               await Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (context) => EventDetailsPage(
@@ -128,10 +131,11 @@ class DayScheduleView extends StatelessWidget {
               ),
               child: Text(
                 event.title,
-                style: TextStyle(
-                    color: eventTextColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold),
+                style: GoogleFonts.inter(
+                    textStyle: TextStyle(
+                        color: eventTextColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold)),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -195,8 +199,8 @@ class _DayEventsScreenState extends State<DayEventsScreen> {
   }
 
   void _handleEventChangeFromDetails() {
-    _loadDayEvents(); 
-    widget.onMasterListShouldUpdate(); 
+    _loadDayEvents();
+    widget.onMasterListShouldUpdate();
   }
 
   @override
@@ -207,7 +211,7 @@ class _DayEventsScreenState extends State<DayEventsScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(DateFormat.yMMMd().format(widget.date)),
+        title: Text(DateFormat.yMMMd().format(widget.date)), // Theme will apply inter
       ),
       body: DayScheduleView(
         date: widget.date,
@@ -249,9 +253,15 @@ class _CalendarAppState extends State<CalendarApp> {
       seedColor: seedColor,
       brightness: Brightness.light,
     );
+
+    final Color subColorGreen = const Color(0xFF0DFF66);
     final darkColorScheme = ColorScheme.fromSeed(
-      seedColor: seedColor,
+      seedColor: subColorGreen,
       brightness: Brightness.dark,
+      background: Colors.black,
+      surface: Colors.black,
+      onBackground: Colors.white.withOpacity(0.9),
+      onSurface: Colors.white.withOpacity(0.9),
     );
 
     return MaterialApp(
@@ -259,15 +269,33 @@ class _CalendarAppState extends State<CalendarApp> {
       theme: ThemeData(
         colorScheme: lightColorScheme,
         useMaterial3: true,
+        fontFamily: GoogleFonts.inter().fontFamily, // Default calendar font: inter
         appBarTheme: AppBarTheme(
           elevation: 0,
           backgroundColor: lightColorScheme.background,
           foregroundColor: lightColorScheme.onSurface,
+          titleTextStyle: GoogleFonts.inter(
+              textStyle: TextStyle(
+                  color: lightColorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 20)),
         ),
         textTheme: TextTheme(
-          titleLarge: TextStyle(
-              color: lightColorScheme.onSurface, fontWeight: FontWeight.bold),
-          labelLarge: TextStyle(color: lightColorScheme.primary),
+          titleLarge: GoogleFonts.inter(
+              textStyle: TextStyle(
+                  color: lightColorScheme.onSurface, fontWeight: FontWeight.bold)),
+          titleMedium: GoogleFonts.inter(
+              textStyle: TextStyle(color: lightColorScheme.onSurface)),
+          titleSmall: GoogleFonts.inter(
+              textStyle: TextStyle(color: lightColorScheme.onSurface)),
+          labelLarge: GoogleFonts.inter(
+              textStyle: TextStyle(color: lightColorScheme.primary)),
+          bodyMedium: GoogleFonts.inter( // Inter for AI Summary
+              textStyle: TextStyle(color: lightColorScheme.onSurface, fontSize: 14)),
+          bodySmall: GoogleFonts.inter(
+              textStyle: TextStyle(
+                  color: lightColorScheme.onSurface.withOpacity(0.7))), 
+          labelSmall: GoogleFonts.inter(
+              textStyle: TextStyle(
+                  color: lightColorScheme.onSurface.withOpacity(0.7))), 
         ),
         iconTheme: IconThemeData(color: lightColorScheme.primary),
         dividerColor: lightColorScheme.outlineVariant,
@@ -275,19 +303,42 @@ class _CalendarAppState extends State<CalendarApp> {
       darkTheme: ThemeData(
         colorScheme: darkColorScheme,
         useMaterial3: true,
-        scaffoldBackgroundColor: Colors.black,
+        fontFamily: GoogleFonts.inter().fontFamily, // Default calendar font for dark theme: inter
+        scaffoldBackgroundColor: darkColorScheme.background,
         appBarTheme: AppBarTheme(
           elevation: 0,
-          backgroundColor: Colors.black,
+          backgroundColor: darkColorScheme.surface,
           foregroundColor: darkColorScheme.onSurface,
+          titleTextStyle: GoogleFonts.inter(
+              textStyle: TextStyle(
+                  color: darkColorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 20)),
         ),
         textTheme: TextTheme(
-          titleLarge: TextStyle(
-              color: darkColorScheme.onSurface, fontWeight: FontWeight.bold),
-          labelLarge: TextStyle(color: darkColorScheme.primary),
+          titleLarge: GoogleFonts.inter(
+              textStyle: TextStyle(
+                  color: darkColorScheme.onSurface, fontWeight: FontWeight.bold)),
+          titleMedium: GoogleFonts.inter(
+              textStyle: TextStyle(color: darkColorScheme.onSurface)),
+          titleSmall: GoogleFonts.inter(
+              textStyle: TextStyle(color: darkColorScheme.onSurface)),
+          labelLarge: GoogleFonts.inter(
+              textStyle: TextStyle(color: darkColorScheme.primary)),
+          bodyMedium: GoogleFonts.inter( // Inter for AI Summary
+              textStyle: TextStyle(
+                  color: darkColorScheme.onSurface.withOpacity(0.87), fontSize: 14)),
+          bodySmall: GoogleFonts.inter(
+              textStyle: TextStyle(
+                  color: darkColorScheme.onSurface.withOpacity(0.7))), 
+          labelSmall: GoogleFonts.inter(
+              textStyle: TextStyle(
+                  color: darkColorScheme.onSurface.withOpacity(0.7))), 
         ),
         iconTheme: IconThemeData(color: darkColorScheme.primary),
-        dividerColor: darkColorScheme.outlineVariant,
+        dividerColor: darkColorScheme.outlineVariant.withOpacity(0.3),
+        floatingActionButtonTheme: FloatingActionButtonThemeData(
+          backgroundColor: darkColorScheme.primary,
+          foregroundColor: darkColorScheme.onPrimary,
+        ),
       ),
       themeMode: _themeMode,
       home: CalendarScreen(
@@ -342,6 +393,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
   final double _timeLabelWidth = 50.0;
 
   final dbHelper = DatabaseHelper.instance;
+  final GeminiService _geminiService = GeminiService();
+
+  String? _aiDaySummary;
+  bool _isFetchingAiSummary = false;
 
   @override
   void initState() {
@@ -354,7 +409,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
         PageController(initialPage: _calculateMonthPageIndex(_focusedMonth));
     _weekPageController =
         PageController(initialPage: _calculateWeekPageIndex(_focusedWeekStart));
-    _loadEventsFromDb();
+    _loadEventsFromDb().then((_) {
+      if (_selectedDate != null) {
+        _fetchAiDaySummary(_selectedDate!); 
+      }
+    });
   }
 
   @override
@@ -377,10 +436,49 @@ class _CalendarScreenState extends State<CalendarScreen> {
       });
     }
   }
+  
+  Future<void> _fetchAiDaySummary(DateTime date) async {
+    if (!mounted) return;
+    setState(() {
+      _isFetchingAiSummary = true;
+      _aiDaySummary = null; 
+    });
+
+    final dayKey = DateTime(date.year, date.month, date.day);
+    final eventsForDate = _events[dayKey] ?? [];
+
+    try {
+      final summary = await _geminiService.getSummaryForDayEvents(date, eventsForDate);
+      if (mounted) {
+        setState(() {
+          _aiDaySummary = summary;
+          _isFetchingAiSummary = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _aiDaySummary = "Error fetching summary: ${e.toString()}";
+          _isFetchingAiSummary = false;
+        });
+      }
+    }
+  }
+
 
   Future<void> _resetDatabase() async {
     await dbHelper.resetDatabase();
     await _loadEventsFromDb();
+    if (_selectedDate != null) {
+      _fetchAiDaySummary(_selectedDate!); 
+    } else {
+       if (mounted) {
+        setState(() {
+          _aiDaySummary = "Database reset. Select a day to see its AI summary.";
+          _isFetchingAiSummary = false;
+        });
+      }
+    }
   }
 
   int _calculateMonthPageIndex(DateTime month) {
@@ -448,14 +546,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
         DateTime weekViewAnchorDate = _selectedDate ?? _today;
         _focusedWeekStart = weekViewAnchorDate
             .subtract(Duration(days: weekViewAnchorDate.weekday % 7));
-        _weekPageController.dispose(); // Dispose old controller
+        _weekPageController.dispose(); 
         _weekPageController = PageController(
             initialPage: _calculateWeekPageIndex(_focusedWeekStart));
       } else {
         _focusedMonth = DateTime(_selectedDate?.year ?? _today.year,
             _selectedDate?.month ?? _today.month);
         int targetMonthPageIndex = _calculateMonthPageIndex(_focusedMonth);
-         _monthPageController.dispose(); // Dispose old controller
+         _monthPageController.dispose(); 
         _monthPageController =
             PageController(initialPage: targetMonthPageIndex);
 
@@ -477,6 +575,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
           }
           _selectedDate = newSelectedCandidate;
         }
+        if (_selectedDate != null) {
+           _fetchAiDaySummary(_selectedDate!);
+        }
+
 
          WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted && _monthPageController.hasClients) {
@@ -487,7 +589,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
           }
         });
       }
-      _loadEventsFromDb(); 
     });
   }
 
@@ -500,6 +601,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     if (eventWasAdded == true) {
       await _loadEventsFromDb();
+      if (_selectedDate != null && 
+          _selectedDate!.year == initialDate.year &&
+          _selectedDate!.month == initialDate.month &&
+          _selectedDate!.day == initialDate.day) {
+        _fetchAiDaySummary(_selectedDate!);
+      }
     }
   }
 
@@ -509,7 +616,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
       MaterialPageRoute(
         builder: (context) => DayEventsScreen(
           date: date,
-          onMasterListShouldUpdate: _loadEventsFromDb,
+          onMasterListShouldUpdate: () async {
+            await _loadEventsFromDb();
+            if (_selectedDate != null &&
+                _selectedDate!.year == date.year &&
+                _selectedDate!.month == date.month &&
+                _selectedDate!.day == date.day) {
+              _fetchAiDaySummary(_selectedDate!);
+            }
+          },
         ),
       ),
     );
@@ -517,57 +632,72 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Widget _buildSelectedDayEventSummary(BuildContext context, DateTime monthToDisplay) {
     final theme = Theme.of(context);
-    if (_selectedDate == null || _selectedDate!.month != monthToDisplay.month || _selectedDate!.year != monthToDisplay.year) {
-      return const SizedBox.shrink();
-    }
 
-    final dayKey = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day);
-    final selectedDayEvents = _events[dayKey] ?? [];
-    selectedDayEvents.sort((a, b) => (a.startTimeAsTimeOfDay.hour * 60 + a.startTimeAsTimeOfDay.minute)
-        .compareTo(b.startTimeAsTimeOfDay.hour * 60 + b.startTimeAsTimeOfDay.minute));
-
-    return Column( // This Column is the root of the summary
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
-          child: Text(
-            "Events for ${DateFormat.yMMMd().format(_selectedDate!)}",
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+    if (_selectedDate == null || 
+        _selectedDate!.month != monthToDisplay.month || 
+        _selectedDate!.year != monthToDisplay.year) {
+      return Expanded(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Center(
+            child: Text(
+              _selectedDate == null ? "Select a day to see its AI summary." : "AI Summary will appear here.",
+              style: theme.textTheme.bodyMedium, // Will use Inter from theme
+              textAlign: TextAlign.center,
+            ),
           ),
         ),
-        Expanded( // Make the list or "No events" message expand
-          child: selectedDayEvents.isEmpty
-              ? Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-                  child: Center(
-                    child: Text(
-                      "No events scheduled for this day.",
-                      style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7)),
-                    ),
+      );
+    }
+    
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12.0, 12.0, 12.0, 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    "AI Summary for ${DateFormat.yMMMd().format(_selectedDate!)}",
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold), // inter from theme
                   ),
-                )
-              : ListView.builder(
-                  // shrinkWrap: false, // Ensure ListView can expand and scroll
-                  itemCount: selectedDayEvents.length,
-                  itemBuilder: (context, index) {
-                    final event = selectedDayEvents[index];
-                    final startTimeStr = DateFormat.jm().format(event.startTimeAsDateTime);
-                    final endTimeStr = DateFormat.jm().format(event.endTimeAsDateTime);
-
-                    return ListTile(
-                      leading: Icon(Icons.event_note, color: theme.colorScheme.secondary),
-                      title: Text(event.title, style: TextStyle(fontWeight: FontWeight.w500)),
-                      subtitle: Text("$startTimeStr - $endTimeStr${event.description.isNotEmpty ? '\n' : ''}${event.description}"),
-                      isThreeLine: event.description.isNotEmpty,
-                      onTap: () => _showDayEventsTimeSlotsPage(event.date), // Tap on event in summary navigates
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    );
-                  },
                 ),
-        ),
-        const Divider(height: 1),
-      ],
+                IconButton(
+                  icon: Icon(Icons.open_in_new, color: theme.colorScheme.primary),
+                  tooltip: "View Day Details",
+                  onPressed: () => _showDayEventsTimeSlotsPage(_selectedDate!),
+                )
+              ],
+            ),
+          ),
+          Expanded(
+            child: _isFetchingAiSummary
+                ? const Center(child: CircularProgressIndicator())
+                : _aiDaySummary != null && _aiDaySummary!.isNotEmpty
+                    ? SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                        child: Text(
+                          _aiDaySummary!,
+                           style: theme.textTheme.bodyMedium, // Will use Inter from theme
+                        ),
+                      )
+                    : Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Text(
+                            "No summary available for this day, or an error occurred.",
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodyMedium, // Will use Inter from theme
+                          ),
+                        ),
+                      ),
+          ),
+          const Divider(height: 1),
+        ],
+      ),
     );
   }
 
@@ -596,24 +726,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
               height: boxSize,
               decoration: BoxDecoration(
                 border: Border(
-                  top: BorderSide(
-                    color: Colors.transparent,
-                    width: 0.5,
-                  ),
-                  right: BorderSide(
-                    color: Colors.transparent,
-                    width: 0.5,
-                  ),
+                  top: BorderSide(color: Colors.transparent, width: 0.5),
+                  right: BorderSide(color: Colors.transparent, width: 0.5),
                 ),
               ),
               child: Center(
                 child: Text(
                   day.toString(),
-                  style: TextStyle(
-                    fontWeight: FontWeight.normal,
-                    fontSize: boxSize * 0.35,
-                    color: prevNextMonthTextColor,
-                  ),
+                  style: theme.textTheme.bodySmall?.copyWith(fontSize: boxSize * 0.35, color: prevNextMonthTextColor), // inter from theme
                 ),
               ),
             );
@@ -626,7 +746,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       final date = DateTime(monthToDisplay.year, monthToDisplay.month, day);
       final isSelected = _selectedDate != null &&
           _selectedDate!.year == date.year &&
-          _selectedDate!.month == date.month &&
+         _selectedDate!.month == date.month &&
           _selectedDate!.day == date.day;
       final isTodayDate = date.year == _today.year &&
           date.month == _today.month &&
@@ -639,16 +759,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
       FontWeight numberFontWeight = FontWeight.normal;
       BoxDecoration cellDecoration = BoxDecoration(
         border: Border(
-          top: BorderSide(
-            color: Colors.transparent,
-            width: 0.5,
-          ),
-          right: BorderSide(
-            color: Colors.transparent,
-            width: 0.5,
-          ),
+          top: BorderSide(color: Colors.transparent, width: 0.5),
+          right: BorderSide(color: Colors.transparent, width: 0.5),
         ),
       );
+
+      TextStyle? dayTextStyle;
 
       if (isSelected) {
         cellDecoration = cellDecoration.copyWith(
@@ -656,28 +772,33 @@ class _CalendarScreenState extends State<CalendarScreen> {
           borderRadius: BorderRadius.circular(8),
         );
         numberColor = theme.colorScheme.onPrimaryContainer;
-        numberFontWeight = FontWeight.bold;
+        dayTextStyle = theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold, color: numberColor );
       } else if (isTodayDate) {
         numberColor = theme.colorScheme.primary;
-        numberFontWeight = FontWeight.bold;
+        dayTextStyle = theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold, color: numberColor );
       } else {
         numberColor = theme.colorScheme.onSurface;
+        dayTextStyle = theme.textTheme.bodySmall?.copyWith(color: numberColor );
       }
 
       if (isTodayDate && isSelected) {
          numberColor = theme.colorScheme.onPrimaryContainer;
+         dayTextStyle = theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold, color: numberColor );
       }
 
       dayWidgets.add(
         LayoutBuilder(
           builder: (context, constraints) {
-            final boxSize = constraints.maxWidth;
+            final boxSize = constraints.maxWidth; // Recalculate boxSize here as it might not be in scope for dayTextStyle
+            // Apply dynamic font size to the existing text style
+            TextStyle? finalDayTextStyle = dayTextStyle?.copyWith(fontSize: boxSize * 0.4);
+
             return GestureDetector(
                 onTap: () {
                   setState(() {
                     _selectedDate = date;
                   });
-                  _showDayEventsTimeSlotsPage(date); // Re-added navigation
+                  _fetchAiDaySummary(date); 
                 },
                 onDoubleTap: () {
                   _addEvent(date);
@@ -691,11 +812,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     children: [
                       Text(
                         day.toString(),
-                        style: TextStyle(
-                          fontWeight: numberFontWeight,
-                          fontSize: boxSize * 0.4,
-                          color: numberColor,
-                        ),
+                        style: finalDayTextStyle, // inter from theme, with dynamic size
                       ),
                       if (hasEvent)
                         Positioned(
@@ -703,8 +820,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           bottom: boxSize * 0.1,
                           child: Icon(Icons.circle,
                               size: boxSize * 0.15,
-                              color: theme.colorScheme.secondary
-                                  .withOpacity(0.8)),
+                              color: theme.colorScheme.secondary.withOpacity(0.8)),
                         ),
                     ],
                   ),
@@ -726,24 +842,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
               height: boxSize,
               decoration: BoxDecoration(
                 border: Border(
-                  top: BorderSide(
-                    color: Colors.transparent,
-                    width: 0.5,
-                  ),
-                  right: BorderSide(
-                   color: Colors.transparent,
-                    width: 0.5,
-                  ),
+                  top: BorderSide(color: Colors.transparent, width: 0.5),
+                  right: BorderSide(color: Colors.transparent,width: 0.5),
                 ),
               ),
               child: Center(
                 child: Text(
                   i.toString(),
-                  style: TextStyle(
-                    fontWeight: FontWeight.normal,
-                    fontSize: boxSize * 0.35,
-                    color: prevNextMonthTextColor,
-                  ),
+                  style: theme.textTheme.bodySmall?.copyWith(fontSize: boxSize * 0.35, color: prevNextMonthTextColor), // inter from theme
                 ),
               ),
             );
@@ -760,9 +866,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           physics: const NeverScrollableScrollPhysics(),
           children: dayWidgets,
         ),
-        Expanded( // Make the summary section expand
-          child: _buildSelectedDayEventSummary(context, monthToDisplay),
-        ),
+         _buildSelectedDayEventSummary(context, monthToDisplay),
       ],
     );
   }
@@ -784,10 +888,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             alignment: Alignment.centerRight,
             child: Text(
               DateFormat('HH:mm').format(DateTime(2000, 1, 1, hour)),
-              style: TextStyle(
-                fontSize: 10,
-                color: timeLabelColor,
-              ),
+              style: theme.textTheme.labelSmall?.copyWith(fontSize: 10, color: timeLabelColor), // inter from theme
             ),
           ),
         ),
@@ -846,14 +947,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           height: eventHeight,
           child: GestureDetector(
             onTap: () async {
-              await Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => DayEventsScreen(
-                    date: day, 
-                    onMasterListShouldUpdate: _loadEventsFromDb,
-                  ),
-                ),
-              );
+              _showDayEventsTimeSlotsPage(day);
             },
             child: Container(
               padding: const EdgeInsets.all(4.0),
@@ -864,7 +958,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ),
               child: Text(
                 event.title,
-                style: TextStyle(
+                style: theme.textTheme.labelSmall?.copyWith( // inter from theme
                   color: theme.colorScheme.onSecondaryContainer,
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
@@ -901,8 +995,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   onPressed: _goToPreviousWeek),
               Text(
                 "${DateFormat.MMMd().format(weekDates.first)} - ${DateFormat.MMMd().format(weekDates.last)}",
-                style: theme.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold), // inter from theme
               ),
               IconButton(
                   icon: const Icon(Icons.chevron_right),
@@ -923,7 +1016,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   alignment: Alignment.center,
                   child: Text(
                     weekDays[date.weekday % 7].toUpperCase(),
-                    style: TextStyle(
+                    style: theme.textTheme.labelSmall?.copyWith( // inter from theme
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
                       color: isToday
@@ -999,9 +1092,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isWeekView
+        title: Text(_isWeekView 
             ? '${DateFormat.MMMM().format(_focusedWeekStart)} - ${DateFormat.MMMM().format(_focusedWeekStart.add(const Duration(days: 6)))}'
-            : monthNameDisplay),
+            : monthNameDisplay), // inter from theme (via appBarTheme.titleTextStyle)
         centerTitle: true,
         actions: [
           IconButton(
@@ -1028,9 +1121,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: Column( 
         children: [
-          if (!_isWeekView)
+          if (!_isWeekView) 
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
@@ -1038,9 +1131,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 children: [
                   Text(
                     monthNameDisplay,
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: theme.textTheme.titleLarge, // inter from theme
                   ),
                   Row( 
                     children: [
@@ -1057,7 +1148,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ],
               ),
             ),
-          if (!_isWeekView)
+          if (!_isWeekView) 
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               child: Row(
@@ -1066,11 +1157,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           child: Center(
                             child: Text(
                               name.toUpperCase(),
-                              style: TextStyle(
+                              style: theme.textTheme.labelSmall?.copyWith( // inter from theme
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12,
-                                color: theme.colorScheme.primary
-                                    .withOpacity(0.8),
+                                color: theme.colorScheme.primary.withOpacity(0.8),
                               ),
                             ),
                           ),
@@ -1078,11 +1168,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     .toList(),
               ),
             ),
-          Expanded(
+          Expanded( 
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
               child: _isWeekView
-                  ? PageView.builder(
+                  ? PageView.builder( 
                       controller: _weekPageController,
                       onPageChanged: (pageIndex) {
                         setState(() {
@@ -1095,19 +1185,37 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         return _buildWeekPageWidget(context, weekStart);
                       },
                     )
-                  : PageView.builder( // Month View
+                  : PageView.builder( 
                       controller: _monthPageController,
                       onPageChanged: (pageIndex) {
                         setState(() {
                           final newFocusedMonth =
                               _getDateFromMonthPageIndex(pageIndex);
                           _focusedMonth = newFocusedMonth;
-                           if (_selectedDate != null && (_selectedDate!.month != _focusedMonth.month || _selectedDate!.year != _focusedMonth.year)) {
+                           bool shouldUpdateSummary = false;
+                           if (_selectedDate != null && 
+                               (_selectedDate!.month != _focusedMonth.month || _selectedDate!.year != _focusedMonth.year)) {
                             DateTime newSelectedCandidate = DateTime(_focusedMonth.year, _focusedMonth.month, _selectedDate!.day);
                             if (newSelectedCandidate.month != _focusedMonth.month) {
                                 newSelectedCandidate = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
                             }
                             _selectedDate = newSelectedCandidate; 
+                            shouldUpdateSummary = true;
+                          } else if (_selectedDate == null && _focusedMonth !=null) {
+                            DateTime actualNow = DateTime.now();
+                             _selectedDate = DateTime(_focusedMonth.year, _focusedMonth.month, 
+                                (_focusedMonth.year == actualNow.year && _focusedMonth.month == actualNow.month) ? actualNow.day : 1);
+                             if(_selectedDate!.month != _focusedMonth.month) { 
+                                _selectedDate = DateTime(_focusedMonth.year, _focusedMonth.month,1);
+                             }
+                            shouldUpdateSummary = true;
+                          }
+
+                          if (shouldUpdateSummary && _selectedDate != null) {
+                            _fetchAiDaySummary(_selectedDate!);
+                          } else if (_selectedDate == null) {
+                             _aiDaySummary = "Select a day to see its AI summary.";
+                             _isFetchingAiSummary = false;
                           }
                         });
                       },

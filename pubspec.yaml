@@ -214,6 +214,7 @@ dependencies:
   open_filex: ^4.7.0
   flutter_launcher_icons: ^0.14.4
   flutter_native_splash: ^2.4.6
+  flutter_ai_toolkit: ^0.10.0
 
 dev_dependencies:
   flutter_test:
