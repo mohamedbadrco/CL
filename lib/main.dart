@@ -789,10 +789,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
           borderRadius: BorderRadius.circular(8),
         );
         numberColor = theme.colorScheme.onPrimaryContainer;
-        dayTextStyle = theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold, color: numberColor );
+        dayTextStyle = theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w800, color: numberColor );
       } else if (isTodayDate) {
         numberColor = theme.colorScheme.primary;
-        dayTextStyle = theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold, color: numberColor );
+        dayTextStyle = theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w800, color: Color.fromRGBO(0, 137,50, 1) );
       } else {
         numberColor = theme.colorScheme.onSurface;
         dayTextStyle = theme.textTheme.bodySmall?.copyWith(color: numberColor );
@@ -800,7 +800,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
       if (isTodayDate && isSelected) {
          numberColor = theme.colorScheme.onPrimaryContainer;
-         dayTextStyle = theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold, color: numberColor );
+         dayTextStyle = theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w800, color: numberColor );
       }
 
       dayWidgets.add(
