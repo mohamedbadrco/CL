@@ -6,7 +6,9 @@ import 'package:google_fonts/google_fonts.dart'; // Added for Google Fonts
 import './add_event_page.dart'; // Import the new AddEventPage
 import './event_details_page.dart'; // Import the EventDetailsPage
 import './database_helper.dart'; // Import DatabaseHelper
-import './api/gemini_service.dart'; // Import GeminiService
+import './api/gemini_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+ // Import GeminiService
 
 class DayScheduleView extends StatelessWidget {
   final DateTime date;
@@ -47,8 +49,8 @@ class DayScheduleView extends StatelessWidget {
     List<Widget> timeSlots = [];
     final int totalHours = TamaxTime.hour - TaminTime.hour + 1;
     final theme = Theme.of(context);
-    final slotBorderColor = theme.colorScheme.outlineVariant.withOpacity(0.5);
-    final timeLabelColor = theme.colorScheme.onSurface.withOpacity(0.6);
+    final slotBorderColor = theme.colorScheme.outlineVariant;
+    final timeLabelColor = theme.colorScheme.onSurface;
 
     for (int i = 0; i < totalHours; i++) {
       final hour = TaminTime.hour + i;
@@ -126,7 +128,7 @@ class DayScheduleView extends StatelessWidget {
               padding: const EdgeInsets.all(6),
               margin: const EdgeInsets.only(bottom: 2),
               decoration: BoxDecoration(
-                color: eventBgColor.withOpacity(0.9),
+                color: eventBgColor,
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
@@ -225,7 +227,8 @@ class _DayEventsScreenState extends State<DayEventsScreen> {
   }
 }
 
-void main() {
+void main()  {
+  // await dotenv.load(fileName: ".env"); // Specify the path to your .env file
   runApp(const CalendarApp());
 }
 
@@ -236,6 +239,7 @@ class CalendarApp extends StatefulWidget {
   State<CalendarApp> createState() => _CalendarAppState();
 }
 
+  const Color primarySeedColor = Color(0xFF30D158);
 class _CalendarAppState extends State<CalendarApp> {
   ThemeMode _themeMode = ThemeMode.system;
 
@@ -248,20 +252,33 @@ class _CalendarAppState extends State<CalendarApp> {
 
   @override
   Widget build(BuildContext context) {
-    const seedColor = Colors.teal;
-    final lightColorScheme = ColorScheme.fromSeed(
-      seedColor: seedColor,
+    final lightColorScheme = ColorScheme(
+      onBackground: const Color(0xFF1c1c1e),
+      onSurface: const Color(0xFF1c1c1e),
+      background: const Color(0xFFebebf0),
+      surface: const Color(0xFFebebf0),
+      onPrimary: const Color(0xFF30D158),
+      primary: const Color(0xFF1c1c1e),
+      secondary: const Color(0xFF30D158),
+      onSecondary: const Color(0xFFebebf0),
+      error: const Color(0xFFff4345),
+      onError: const Color(0xFFebebf0),
       brightness: Brightness.light,
     );
 
-    final Color subColorGreen = const Color(0xFF0DFF66);
-    final darkColorScheme = ColorScheme.fromSeed(
-      seedColor: subColorGreen,
+    final darkColorScheme = ColorScheme(
+      // seedColor: const Color(0xFF30D158),
       brightness: Brightness.dark,
-      background: Colors.black,
-      surface: Colors.black,
-      onBackground: Colors.white.withOpacity(0.9),
-      onSurface: Colors.white.withOpacity(0.9),
+      background: const Color(0xFF1c1c1e),
+      surface: const Color(0xFF1c1c1e),
+      onBackground: const Color(0xFFebebf0),
+      onSurface: const Color(0xFFebebf0),
+      primary: const Color(0xFF30D158),
+      onPrimary: const Color(0xFF1c1c1e),
+      secondary: const Color(0xFFebebf0),
+      onSecondary: const Color(0xFF1c1c1e),
+      error: const Color(0xFFff4345),
+      onError: const Color(0xFFebebf0),
     );
 
     return MaterialApp(
@@ -292,10 +309,10 @@ class _CalendarAppState extends State<CalendarApp> {
               textStyle: TextStyle(color: lightColorScheme.onSurface, fontSize: 14)),
           bodySmall: GoogleFonts.inter(
               textStyle: TextStyle(
-                  color: lightColorScheme.onSurface.withOpacity(0.7))), 
+                  color: lightColorScheme.onSurface)), 
           labelSmall: GoogleFonts.inter(
               textStyle: TextStyle(
-                  color: lightColorScheme.onSurface.withOpacity(0.7))), 
+                  color: lightColorScheme.onSurface)), 
         ),
         iconTheme: IconThemeData(color: lightColorScheme.primary),
         dividerColor: lightColorScheme.outlineVariant,
@@ -328,13 +345,13 @@ class _CalendarAppState extends State<CalendarApp> {
                   color: darkColorScheme.onSurface.withOpacity(0.87), fontSize: 14)),
           bodySmall: GoogleFonts.inter(
               textStyle: TextStyle(
-                  color: darkColorScheme.onSurface.withOpacity(0.7))), 
+                  color: darkColorScheme.onSurface)), 
           labelSmall: GoogleFonts.inter(
               textStyle: TextStyle(
-                  color: darkColorScheme.onSurface.withOpacity(0.7))), 
+                  color: darkColorScheme.onSurface)), 
         ),
         iconTheme: IconThemeData(color: darkColorScheme.primary),
-        dividerColor: darkColorScheme.outlineVariant.withOpacity(0.3),
+        dividerColor: darkColorScheme.outlineVariant,
         floatingActionButtonTheme: FloatingActionButtonThemeData(
           backgroundColor: darkColorScheme.primary,
           foregroundColor: darkColorScheme.onPrimary,
@@ -820,7 +837,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           bottom: boxSize * 0.1,
                           child: Icon(Icons.circle,
                               size: boxSize * 0.15,
-                              color: theme.colorScheme.secondary.withOpacity(0.8)),
+                              color: theme.colorScheme.secondary),
                         ),
                     ],
                   ),
@@ -873,7 +890,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Widget _buildTimeLabelStack(BuildContext context) {
     final theme = Theme.of(context);
-    final timeLabelColor = theme.colorScheme.onSurface.withOpacity(0.6);
+    final timeLabelColor = theme.colorScheme.onSurface;
     List<Widget> timeLabels = [];
 
     for (int hour = _minHour; hour <= _maxHour; hour++) {
@@ -911,7 +928,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           child: Divider(
             height: 1,
             thickness: 0.5,
-            color: theme.dividerColor.withOpacity(0.3),
+            color: theme.dividerColor,
           ),
         ),
       );
@@ -953,7 +970,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               padding: const EdgeInsets.all(4.0),
               margin: const EdgeInsets.only(bottom: 1.0),
               decoration: BoxDecoration(
-                color: theme.colorScheme.secondaryContainer.withOpacity(0.8),
+                color: theme.colorScheme.secondaryContainer,
                 borderRadius: BorderRadius.circular(4.0),
               ),
               child: Text(
@@ -1021,7 +1038,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       fontSize: 12,
                       color: isToday
                           ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurface.withOpacity(0.7),
+                          : theme.colorScheme.onSurface,
                     ),
                   ),
                 ),
@@ -1058,11 +1075,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             decoration: BoxDecoration(
                               border: Border(
                                 left: BorderSide(
-                                    color: borderColor.withOpacity(0.5),
+                                    color: borderColor,
                                     width: 0.5),
                                 right: date == weekDates.last
                                     ? BorderSide(
-                                        color: borderColor.withOpacity(0.5),
+                                        color: borderColor,
                                         width: 0.5)
                                     : BorderSide.none,
                               ),
@@ -1160,7 +1177,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               style: theme.textTheme.labelSmall?.copyWith( // inter from theme
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12,
-                                color: theme.colorScheme.primary.withOpacity(0.8),
+                                color: theme.colorScheme.primary,
                               ),
                             ),
                           ),

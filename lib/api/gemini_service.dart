@@ -1,6 +1,7 @@
 import 'dart:convert'; // For jsonEncode, if you decide to send JSON
 import 'dart:async'; // For Future.delayed
-import 'dart:io' show Platform;
+// import 'dart:io' show Platform;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 
 // You might need to add the http package to your pubspec.yaml:
@@ -11,10 +12,10 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart'; // For DateFormat
 import '../database_helper.dart'; // For the Event class
 
+
 class GeminiService {
   // API Key loaded from GEM_AI_API_KEY environment variable.
   // final String? _apiKey = Platform.environment['GEM_AI_API_KEY'];
-   final String? _apiKey = "";
 
 
   /// Fetches an AI-generated summary for all events on a specific date.
@@ -24,6 +25,10 @@ class GeminiService {
   /// Returns a Future<String> containing the AI summary.
   Future<String> getSummaryForDayEvents(DateTime dateForEvents, List<Event> dailyEvents) async {
     print("--- Gemini Service: getSummaryForDayEvents ---  ");
+    
+    // final String? _apiKey = "AIzaSyAm7g147WPxJ4-Eyk7IGv288zWFYODCNwM";
+   final String? _apiKey = null;
+    print("||||||||||||||||||||||||||| $_apiKey");
 
     if (_apiKey == null || _apiKey!.isEmpty) {
       const String errorMessage = "Error: GEM_AI_API_KEY environment variable is not set or is empty.";
