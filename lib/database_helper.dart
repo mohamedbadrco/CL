@@ -45,6 +45,18 @@ class Event {
     return endMinutes - startMinutes;
   }
 
+  // Helper to get full DateTime for start time
+  DateTime get startTimeAsDateTime {
+    final time = startTimeAsTimeOfDay;
+    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+  }
+
+  // Helper to get full DateTime for end time
+  DateTime get endTimeAsDateTime {
+    final time = endTimeAsTimeOfDay;
+    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'id': id, // id is fine here, sqflite handles null for autoincrement

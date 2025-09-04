@@ -112,10 +112,7 @@ class DayScheduleView extends StatelessWidget {
                   builder: (context) => EventDetailsPage(
                     event: event,
                     onEventChanged: (Event? updatedEvent) {
-                      // This callback is now provided by DayEventsScreen
-                      // It will trigger DayEventsScreen to reload its data & then CalendarScreen
                       onEventChanged?.call();
-                      // EventDetailsPage handles its own UI update or pop
                     },
                   ),
                 ),
@@ -161,10 +158,9 @@ class DayScheduleView extends StatelessWidget {
   }
 }
 
-// New StatefulWidget to manage the display of a single day's events
 class DayEventsScreen extends StatefulWidget {
   final DateTime date;
-  final VoidCallback onMasterListShouldUpdate; // To tell CalendarScreen to reload
+  final VoidCallback onMasterListShouldUpdate;
 
   const DayEventsScreen({
     super.key,
@@ -198,10 +194,9 @@ class _DayEventsScreenState extends State<DayEventsScreen> {
     }
   }
 
-  // This will be called by EventDetailsPage via DayScheduleView
   void _handleEventChangeFromDetails() {
-    _loadDayEvents(); // Refresh this screen's events
-    widget.onMasterListShouldUpdate(); // Notify CalendarScreen to refresh its data
+    _loadDayEvents(); 
+    widget.onMasterListShouldUpdate(); 
   }
 
   @override
@@ -453,14 +448,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
         DateTime weekViewAnchorDate = _selectedDate ?? _today;
         _focusedWeekStart = weekViewAnchorDate
             .subtract(Duration(days: weekViewAnchorDate.weekday % 7));
-        _weekPageController.dispose();
+        _weekPageController.dispose(); // Dispose old controller
         _weekPageController = PageController(
             initialPage: _calculateWeekPageIndex(_focusedWeekStart));
       } else {
         _focusedMonth = DateTime(_selectedDate?.year ?? _today.year,
             _selectedDate?.month ?? _today.month);
         int targetMonthPageIndex = _calculateMonthPageIndex(_focusedMonth);
-        _monthPageController.dispose();
+         _monthPageController.dispose(); // Dispose old controller
         _monthPageController =
             PageController(initialPage: targetMonthPageIndex);
 
@@ -468,32 +463,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
             (_selectedDate!.year != _focusedMonth.year ||
                 _selectedDate!.month != _focusedMonth.month)) {
           DateTime newSelectedCandidate =
-              DateTime(_focusedMonth.year, _focusedMonth.month, _today.day);
+              DateTime(_focusedMonth.year, _focusedMonth.month, _selectedDate!.day);
           if (newSelectedCandidate.month != _focusedMonth.month) {
             newSelectedCandidate =
                 DateTime(_focusedMonth.year, _focusedMonth.month, 1);
           }
           _selectedDate = newSelectedCandidate;
         } else if (_selectedDate == null) {
-          DateTime newSelectedCandidate =
-              DateTime(_focusedMonth.year, _focusedMonth.month, _today.day);
-          if (newSelectedCandidate.month != _focusedMonth.month) {
+           DateTime newSelectedCandidate = DateTime(_focusedMonth.year, _focusedMonth.month, _today.day);
+            if (newSelectedCandidate.month != _focusedMonth.month) {
             newSelectedCandidate =
                 DateTime(_focusedMonth.year, _focusedMonth.month, 1);
           }
           _selectedDate = newSelectedCandidate;
         }
 
-        WidgetsBinding.instance.addPostFrameCallback((_) {
+         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted && _monthPageController.hasClients) {
-            final currentPage = _monthPageController.page?.round();
+             final currentPage = _monthPageController.page?.round();
             if (currentPage != targetMonthPageIndex) {
-              _monthPageController.jumpToPage(targetMonthPageIndex);
+            _monthPageController.jumpToPage(targetMonthPageIndex);
             }
           }
         });
       }
-      _loadEventsFromDb();
+      _loadEventsFromDb(); 
     });
   }
 
@@ -509,20 +503,72 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
-  // Updated to navigate to DayEventsScreen
   void _showDayEventsTimeSlotsPage(DateTime date) async {
     if (!mounted) return;
-
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => DayEventsScreen(
           date: date,
-          onMasterListShouldUpdate: _loadEventsFromDb, // Pass callback to CalendarScreen
+          onMasterListShouldUpdate: _loadEventsFromDb,
         ),
       ),
     );
-    // No need to call _loadEventsFromDb here,
-    // DayEventsScreen will trigger it if necessary via onMasterListShouldUpdate
+  }
+
+  Widget _buildSelectedDayEventSummary(BuildContext context, DateTime monthToDisplay) {
+    final theme = Theme.of(context);
+    if (_selectedDate == null || _selectedDate!.month != monthToDisplay.month || _selectedDate!.year != monthToDisplay.year) {
+      return const SizedBox.shrink();
+    }
+
+    final dayKey = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day);
+    final selectedDayEvents = _events[dayKey] ?? [];
+    selectedDayEvents.sort((a, b) => (a.startTimeAsTimeOfDay.hour * 60 + a.startTimeAsTimeOfDay.minute)
+        .compareTo(b.startTimeAsTimeOfDay.hour * 60 + b.startTimeAsTimeOfDay.minute));
+
+    return Column( // This Column is the root of the summary
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
+          child: Text(
+            "Events for ${DateFormat.yMMMd().format(_selectedDate!)}",
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+        ),
+        Expanded( // Make the list or "No events" message expand
+          child: selectedDayEvents.isEmpty
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+                  child: Center(
+                    child: Text(
+                      "No events scheduled for this day.",
+                      style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7)),
+                    ),
+                  ),
+                )
+              : ListView.builder(
+                  // shrinkWrap: false, // Ensure ListView can expand and scroll
+                  itemCount: selectedDayEvents.length,
+                  itemBuilder: (context, index) {
+                    final event = selectedDayEvents[index];
+                    final startTimeStr = DateFormat.jm().format(event.startTimeAsDateTime);
+                    final endTimeStr = DateFormat.jm().format(event.endTimeAsDateTime);
+
+                    return ListTile(
+                      leading: Icon(Icons.event_note, color: theme.colorScheme.secondary),
+                      title: Text(event.title, style: TextStyle(fontWeight: FontWeight.w500)),
+                      subtitle: Text("$startTimeStr - $endTimeStr${event.description.isNotEmpty ? '\n' : ''}${event.description}"),
+                      isThreeLine: event.description.isNotEmpty,
+                      onTap: () => _showDayEventsTimeSlotsPage(event.date), // Tap on event in summary navigates
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    );
+                  },
+                ),
+        ),
+        const Divider(height: 1),
+      ],
+    );
   }
 
   Widget _buildMonthPageWidget(BuildContext context, DateTime monthToDisplay) {
@@ -619,7 +665,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       }
 
       if (isTodayDate && isSelected) {
-        numberColor = theme.colorScheme.onPrimaryContainer;
+         numberColor = theme.colorScheme.onPrimaryContainer;
       }
 
       dayWidgets.add(
@@ -631,7 +677,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   setState(() {
                     _selectedDate = date;
                   });
-                  _showDayEventsTimeSlotsPage(date);
+                  _showDayEventsTimeSlotsPage(date); // Re-added navigation
                 },
                 onDoubleTap: () {
                   _addEvent(date);
@@ -668,9 +714,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
       );
     }
 
-    int totalBoxes = dayWidgets.length;
-    int nextDays = (totalBoxes % 7 == 0) ? 0 : (7 - totalBoxes % 7);
-    for (int i = 1; i <= nextDays; i++) {
+    int nextDaysRequired = (weekdayOffset + daysInMonth <= 35) ? 35 - (weekdayOffset + daysInMonth) : 42 - (weekdayOffset + daysInMonth);
+    
+    for (int i = 1; i <= nextDaysRequired; i++) {
       dayWidgets.add(
         LayoutBuilder(
           builder: (context, constraints) {
@@ -685,7 +731,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     width: 0.5,
                   ),
                   right: BorderSide(
-                    color: Colors.transparent,
+                   color: Colors.transparent,
                     width: 0.5,
                   ),
                 ),
@@ -706,11 +752,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
       );
     }
 
-    return GridView.count(
-      crossAxisCount: 7,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      children: dayWidgets,
+    return Column( 
+      children: [
+        GridView.count(
+          crossAxisCount: 7,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: dayWidgets,
+        ),
+        Expanded( // Make the summary section expand
+          child: _buildSelectedDayEventSummary(context, monthToDisplay),
+        ),
+      ],
     );
   }
 
@@ -793,20 +846,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
           height: eventHeight,
           child: GestureDetector(
             onTap: () async {
-               // When tapping an event in week view, navigate to DayEventsScreen
-               // This ensures that if the event is edited/deleted from there,
-               // the CalendarScreen's main event list (_events) is also updated.
               await Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (context) => DayEventsScreen(
-                    date: day, // The specific day of the event
+                    date: day, 
                     onMasterListShouldUpdate: _loadEventsFromDb,
                   ),
                 ),
               );
-              // After DayEventsScreen pops, _loadEventsFromDb might have been called by it.
-              // If not, and you want to ensure the week view reflects changes made on another screen:
-              // await _loadEventsFromDb(); // Consider if this is always needed or if DayEventsScreen handles it.
             },
             child: Container(
               padding: const EdgeInsets.all(4.0),
@@ -987,7 +1034,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween, // Ensures space between title and buttons
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     monthNameDisplay,
@@ -995,7 +1042,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Row( // Group buttons together
+                  Row( 
                     children: [
                       IconButton(
                         icon: const Icon(Icons.chevron_left, size: 28),
@@ -1048,19 +1095,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         return _buildWeekPageWidget(context, weekStart);
                       },
                     )
-                  : PageView.builder(
+                  : PageView.builder( // Month View
                       controller: _monthPageController,
                       onPageChanged: (pageIndex) {
                         setState(() {
                           final newFocusedMonth =
                               _getDateFromMonthPageIndex(pageIndex);
                           _focusedMonth = newFocusedMonth;
-                          // If month changes, and a date was selected in the previous month,
-                          // check if we need to update _selectedDate to be in the new _focusedMonth.
-                          // For simplicity, we can clear _selectedDate or set it to the 1st of new month.
-                          // if (_selectedDate != null && (_selectedDate!.month != _focusedMonth.month || _selectedDate!.year != _focusedMonth.year)) {
-                          //   _selectedDate = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
-                          // }
+                           if (_selectedDate != null && (_selectedDate!.month != _focusedMonth.month || _selectedDate!.year != _focusedMonth.year)) {
+                            DateTime newSelectedCandidate = DateTime(_focusedMonth.year, _focusedMonth.month, _selectedDate!.day);
+                            if (newSelectedCandidate.month != _focusedMonth.month) {
+                                newSelectedCandidate = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
+                            }
+                            _selectedDate = newSelectedCandidate; 
+                          }
                         });
                       },
                       itemBuilder: (context, pageIndex) {
@@ -1070,7 +1118,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     ),
             ),
           ),
-          const SizedBox(height: 8),
         ],
       ),
       floatingActionButton: FloatingActionButton(
