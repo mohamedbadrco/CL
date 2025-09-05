@@ -10,7 +10,9 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:intl/intl.dart'; // For DateFormat
-import '../database_helper.dart'; // For the Event class
+import '../database_helper.dart';
+import './api-keys.dart';
+ // For the Event class
 
 
 class GeminiService {
@@ -27,7 +29,7 @@ class GeminiService {
     print("--- Gemini Service: getSummaryForDayEvents ---  ");
     
     // final String? _apiKey = "AIzaSyAm7g147WPxJ4-Eyk7IGv288zWFYODCNwM";
-   final String? _apiKey = null;
+   final String? _apiKey = google_ai;
     print("||||||||||||||||||||||||||| $_apiKey");
 
     if (_apiKey == null || _apiKey!.isEmpty) {
