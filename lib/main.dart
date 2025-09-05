@@ -207,10 +207,14 @@ class _DayEventsScreenState extends State<DayEventsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context); // Store theme for easy access
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Icon(Icons.arrow_back, 
+                 color: theme.brightness == Brightness.dark 
+                        ? theme.colorScheme.onBackground 
+                        : theme.appBarTheme.foregroundColor),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(DateFormat.yMMMd().format(widget.date)), // Theme will apply inter
@@ -274,7 +278,7 @@ class _CalendarAppState extends State<CalendarApp> {
       onBackground: const Color(0xFFebebf0),
       onSurface: const Color(0xFFebebf0),
       onPrimary: const Color(0xFF30D158),
-      primary: const Color.fromRGBO(99, 99, 102, 1),
+      primary: const Color.fromRGBO(58, 58, 60, 1),
       secondary:  const Color(0xFF30D158),
       onSecondary: const Color(0xFF1c1c1e),
       error: const Color(0xFFff4345),
@@ -350,7 +354,7 @@ class _CalendarAppState extends State<CalendarApp> {
               textStyle: TextStyle(
                   color: darkColorScheme.onSurface)), 
         ),
-        iconTheme: IconThemeData(color: darkColorScheme.primary),
+        iconTheme: IconThemeData(color: darkColorScheme.primary), // primary is used for dark mode icons too
         dividerColor: darkColorScheme.outlineVariant,
         floatingActionButtonTheme: FloatingActionButtonThemeData(
           backgroundColor: darkColorScheme.primary,
@@ -683,7 +687,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.open_in_new, color: theme.colorScheme.primary),
+                  icon: Icon(Icons.open_in_new, 
+                         color: theme.brightness == Brightness.dark 
+                                ? theme.colorScheme.onBackground 
+                                : theme.colorScheme.primary),
                   tooltip: "View Day Details",
                   onPressed: () => _showDayEventsTimeSlotsPage(_selectedDate!),
                 )
@@ -1008,14 +1015,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               IconButton(
-                  icon: const Icon(Icons.chevron_left),
+                  icon: Icon(
+                    Icons.chevron_left,
+                    color: theme.brightness == Brightness.dark
+                        ? theme.colorScheme.onBackground
+                        : theme.iconTheme.color,
+                  ),
                   onPressed: _goToPreviousWeek),
               Text(
                 "${DateFormat.MMMd().format(weekDates.first)} - ${DateFormat.MMMd().format(weekDates.last)}",
                 style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold), // inter from theme
               ),
               IconButton(
-                  icon: const Icon(Icons.chevron_right),
+                  icon: Icon(
+                    Icons.chevron_right,
+                    color: theme.brightness == Brightness.dark
+                        ? theme.colorScheme.onBackground
+                        : theme.iconTheme.color,
+                  ),
                   onPressed: _goToNextWeek),
             ],
           ),
@@ -1036,9 +1053,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     style: theme.textTheme.labelSmall?.copyWith( // inter from theme
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
-                      color: isToday
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurface,
+                      color: theme.brightness == Brightness.dark
+                          ? theme.colorScheme.onBackground
+                          : (isToday
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurface),
                     ),
                   ),
                 ),
@@ -1106,15 +1125,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final weekDayNames =
         DateFormat.EEEE().dateSymbols.STANDALONENARROWWEEKDAYS;
     final weekNameDisplay = DateFormat.yMMMM().format(_focusedMonth);
-    final monthNameDisplay = DateFormat.yMMMM().format(_focusedMonth);
+    // final monthNameDisplay = DateFormat.yMMMM().format(_focusedMonth); // Keep for App Bar potentially or remove if not used elsewhere
 
 
 
     return Scaffold(
       appBar: AppBar(
         title: Text(_isWeekView 
-            ? weekNameDisplay
-            : monthNameDisplay), // inter from theme (via appBarTheme.titleTextStyle)
+            ? weekNameDisplay // Still uses the combined "Month Year" for week view app bar
+            : DateFormat.yMMMM().format(_focusedMonth)), // For month view app bar, ensures it has a value
         // centerTitle: true,
         actions: [
           IconButton(
@@ -1149,18 +1168,46 @@ class _CalendarScreenState extends State<CalendarScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    monthNameDisplay,
-                    style: theme.textTheme.titleLarge, // inter from theme
+                  RichText(
+                    text: TextSpan(
+                      children: <TextSpan>[
+                        TextSpan(
+                          text: DateFormat.MMMM().format(_focusedMonth), // Month
+                          style: (theme.textTheme.titleLarge ?? const TextStyle()).copyWith(
+                            fontSize: (theme.textTheme.titleLarge?.fontSize ?? 20.0) * 1.2, // Making month ~20% larger
+                            color: theme.colorScheme.onPrimary, // Month color as onPrimary
+                          ),
+                        ),
+                        TextSpan(
+                          text: ' ${DateFormat.y().format(_focusedMonth)}', // Space + Year
+                          style: (theme.textTheme.titleLarge ?? const TextStyle()).copyWith(
+                             fontSize: (theme.textTheme.titleLarge?.fontSize ?? 20.0) * 0.9, // Making year ~10% smaller
+                             color: theme.textTheme.titleLarge?.color // Explicitly use the original titleLarge color for the year
+                          )
+                        ),
+                      ],
+                    ),
                   ),
                   Row( 
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.chevron_left, size: 28),
+                        icon: Icon(
+                          Icons.chevron_left,
+                          size: 28,
+                          color: theme.brightness == Brightness.dark
+                              ? theme.colorScheme.onBackground
+                              : theme.iconTheme.color,
+                        ),
                         onPressed: _goToPreviousMonth,
                       ),
                       IconButton(
-                        icon: const Icon(Icons.chevron_right, size: 28),
+                        icon: Icon(
+                          Icons.chevron_right,
+                          size: 28,
+                          color: theme.brightness == Brightness.dark
+                              ? theme.colorScheme.onBackground
+                              : theme.iconTheme.color,
+                        ),
                         onPressed: _goToNextMonth,
                       ),
                     ],
@@ -1180,7 +1227,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               style: theme.textTheme.labelSmall?.copyWith( // inter from theme
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12,
-                                color: theme.colorScheme.primary,
+                                color: theme.brightness == Brightness.dark
+                                    ? theme.colorScheme.onBackground
+                                    : theme.colorScheme.primary,
                               ),
                             ),
                           ),
