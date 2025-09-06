@@ -130,6 +130,7 @@ class MonthPageContent extends StatelessWidget {
     final weekdayOffset = firstDayOfMonth.weekday % 7;
     List<Widget> dayWidgets = [];
 
+    // Previous month's days
     final prevMonth = DateTime(monthToDisplay.year, monthToDisplay.month - 1);
     final prevMonthDays = DateTime(prevMonth.year, prevMonth.month + 1, 0).day;
     for (int i = 0; i < weekdayOffset; i++) {
@@ -168,6 +169,7 @@ class MonthPageContent extends StatelessWidget {
       );
     }
 
+    // Current month's days
     for (int day = 1; day <= daysInMonth; day++) {
       final date = DateTime(monthToDisplay.year, monthToDisplay.month, day);
       final isSelected =
@@ -183,47 +185,55 @@ class MonthPageContent extends StatelessWidget {
       final hasEvent =
           events.containsKey(dayKey) && events[dayKey]!.isNotEmpty;
 
-      BoxDecoration cellDecoration = BoxDecoration(
-        border: Border(
-          top: BorderSide(
-            color: theme.dividerColor.withOpacity(0.2),
-            width: 0.5,
-          ),
-          right: BorderSide(
-            color: theme.dividerColor.withOpacity(0),
-            width: 0.5,
-          ),
-        ),
-      );
-      TextStyle? dayTextStyle;
-
-      if (isSelected) {
-        cellDecoration = cellDecoration.copyWith(
-          color: theme.colorScheme.primaryContainer,
-          borderRadius: BorderRadius.circular(8),
-        );
-        dayTextStyle = theme.textTheme.bodySmall?.copyWith(
-          fontWeight: FontWeight.w800,
-          color: theme.colorScheme.onPrimaryContainer,
-        );
-      } else if (isTodayDate) {
-        dayTextStyle = theme.textTheme.bodySmall?.copyWith(
-          fontWeight: FontWeight.w800,
-          color: const Color.fromRGBO(0, 137, 50, 1),
-        );
-      } else {
-        dayTextStyle = theme.textTheme.bodySmall?.copyWith(
-          color: theme.colorScheme.onSurface,
-        );
-      }
-
       dayWidgets.add(
         LayoutBuilder(
           builder: (context, constraints) {
             final boxSize = constraints.maxWidth;
-            TextStyle? finalDayTextStyle = dayTextStyle?.copyWith(
-              fontSize: boxSize * 0.4,
+
+            BoxDecoration cellOverallDecoration = BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: theme.dividerColor.withOpacity(0.2),
+                  width: 0.5,
+                ),
+                right: BorderSide(
+                  color: theme.dividerColor.withOpacity(0), 
+                  width: 0.5,
+                ),
+              ),
             );
+
+            Widget dayNumberWidget;
+            TextStyle? dayNumberStyle;
+
+            if (isSelected) {
+              dayNumberStyle = theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: theme.colorScheme.onPrimaryContainer,
+                fontSize: boxSize * 0.4,
+              );
+              dayNumberWidget = Container(
+                padding: EdgeInsets.all(boxSize * 0.1), // Padding for the circle around the text
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  shape: BoxShape.circle,
+                ),
+                child: Text(day.toString(), style: dayNumberStyle),
+              );
+            } else if (isTodayDate) {
+              dayNumberStyle = theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: const Color.fromRGBO(0, 137, 50, 1), // Today's distinct color
+                fontSize: boxSize * 0.4,
+              );
+              dayNumberWidget = Text(day.toString(), style: dayNumberStyle);
+            } else {
+              dayNumberStyle = theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface,
+                fontSize: boxSize * 0.4,
+              );
+              dayNumberWidget = Text(day.toString(), style: dayNumberStyle);
+            }
 
             return GestureDetector(
               onTap: () => onDateSelected(date),
@@ -231,11 +241,11 @@ class MonthPageContent extends StatelessWidget {
               child: Container(
                 width: boxSize,
                 height: boxSize,
-                decoration: cellDecoration,
+                decoration: cellOverallDecoration, // This decoration is for the cell borders
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    Text(day.toString(), style: finalDayTextStyle),
+                    dayNumberWidget, // This is the (potentially decorated) day number
                     if (hasEvent)
                       Positioned(
                         right: boxSize * 0.1,
@@ -255,10 +265,11 @@ class MonthPageContent extends StatelessWidget {
       );
     }
 
+    // Next month's days
     int totalCells = weekdayOffset + daysInMonth;
     int nextDaysRequired = (totalCells <= 35)
         ? (35 - totalCells)
-        : (42 - totalCells);
+        : (42 - totalCells); 
 
     for (int i = 1; i <= nextDaysRequired; i++) {
       dayWidgets.add(
