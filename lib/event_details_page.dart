@@ -30,7 +30,9 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
 
   Future<void> _loadAttachments() async {
     if (_currentEvent.id != null) {
-      final attachments = await DatabaseHelper.instance.getAttachmentsForEvent(_currentEvent.id!);
+      final attachments = await DatabaseHelper.instance.getAttachmentsForEvent(
+        _currentEvent.id!,
+      );
       if (mounted) {
         setState(() {
           _attachments = attachments;
@@ -54,17 +56,19 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     // AddEventPage will pop with the updated Event object
     final updatedEvent = await Navigator.of(context).push<Event>(
       MaterialPageRoute(
-        builder: (context) => AddEventPage(
-          date: _currentEvent.date,
-          eventToEdit: _currentEvent,
-        ),
+        builder: (context) =>
+            AddEventPage(date: _currentEvent.date, eventToEdit: _currentEvent),
       ),
     );
 
-    if (updatedEvent != null && mounted) { // If AddEventPage returned an event (i.e., was saved)
-      widget.onEventChanged?.call(updatedEvent); // Notify listener to refresh data in the background
+    if (updatedEvent != null && mounted) {
+      // If AddEventPage returned an event (i.e., was saved)
+      widget.onEventChanged?.call(
+        updatedEvent,
+      ); // Notify listener to refresh data in the background
       setState(() {
-        _currentEvent = updatedEvent; // Update the UI of this page with new event details
+        _currentEvent =
+            updatedEvent; // Update the UI of this page with new event details
       });
       await _loadAttachments(); // Refresh attachments list
     }
@@ -82,9 +86,9 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error opening file: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error opening file: $e')));
       }
     }
   }
@@ -117,7 +121,9 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                 builder: (BuildContext dialogContext) {
                   return AlertDialog(
                     title: const Text('Delete Event?'),
-                    content: const Text('Are you sure you want to delete this event? This action cannot be undone.'),
+                    content: const Text(
+                      'Are you sure you want to delete this event? This action cannot be undone.',
+                    ),
                     actions: <Widget>[
                       TextButton(
                         child: const Text('Cancel'),
@@ -126,10 +132,17 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                         },
                       ),
                       TextButton(
-                        child: Text('Delete', style: TextStyle(color: Theme.of(dialogContext).colorScheme.error)),
+                        child: Text(
+                          'Delete',
+                          style: TextStyle(
+                            color: Theme.of(dialogContext).colorScheme.error,
+                          ),
+                        ),
                         onPressed: () {
                           Navigator.of(dialogContext).pop(); // Close dialog
-                          _deleteEvent(context); // Will call onEventChanged and pop EventDetailsPage
+                          _deleteEvent(
+                            context,
+                          ); // Will call onEventChanged and pop EventDetailsPage
                         },
                       ),
                     ],
@@ -159,7 +172,15 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                     context,
                     icon: Icons.access_time_outlined,
                     label: 'Start Time',
-                    value: timeFormat.format(DateTime(_currentEvent.date.year, _currentEvent.date.month, _currentEvent.date.day, _currentEvent.startTimeAsTimeOfDay.hour, _currentEvent.startTimeAsTimeOfDay.minute)),
+                    value: timeFormat.format(
+                      DateTime(
+                        _currentEvent.date.year,
+                        _currentEvent.date.month,
+                        _currentEvent.date.day,
+                        _currentEvent.startTimeAsTimeOfDay.hour,
+                        _currentEvent.startTimeAsTimeOfDay.minute,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -168,7 +189,15 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                     context,
                     icon: Icons.access_time_filled_outlined,
                     label: 'End Time',
-                    value: timeFormat.format(DateTime(_currentEvent.date.year, _currentEvent.date.month, _currentEvent.date.day, _currentEvent.endTimeAsTimeOfDay.hour, _currentEvent.endTimeAsTimeOfDay.minute)),
+                    value: timeFormat.format(
+                      DateTime(
+                        _currentEvent.date.year,
+                        _currentEvent.date.month,
+                        _currentEvent.date.day,
+                        _currentEvent.endTimeAsTimeOfDay.hour,
+                        _currentEvent.endTimeAsTimeOfDay.minute,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -193,23 +222,33 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
               ),
             ],
             if (_attachments.isNotEmpty) ...[
-              const SizedBox(height: 24), // Increased spacing before attachments section
+              const SizedBox(
+                height: 24,
+              ), // Increased spacing before attachments section
               Text(
                 'Attachments',
-                style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: _attachments.map((attachment) {
-                  String fileName = attachment.filePath.split(Platform.pathSeparator).last;
+                  String fileName = attachment.filePath
+                      .split(Platform.pathSeparator)
+                      .last;
                   return InkWell(
                     onTap: () => _openAttachmentFile(attachment.filePath),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4.0),
                       child: Row(
                         children: [
-                          Icon(Icons.attach_file, color: theme.colorScheme.primary, size: 20),
+                          Icon(
+                            Icons.attach_file,
+                            color: theme.colorScheme.onPrimary,
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -231,14 +270,20 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     );
   }
 
-  Widget _buildDetailItem(BuildContext context, {required IconData icon, required String label, required String value, bool isMultiline = false}) {
+  Widget _buildDetailItem(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String value,
+    bool isMultiline = false,
+  }) {
     final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(icon, size: 20, color: theme.colorScheme.primary),
+            Icon(icon, size: 20, color: theme.colorScheme.onPrimary),
             const SizedBox(width: 8),
             Text(
               label,
@@ -251,7 +296,9 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
         ),
         const SizedBox(height: 4),
         Padding(
-          padding: const EdgeInsets.only(left: 28.0), // Align with text after icon
+          padding: const EdgeInsets.only(
+            left: 28.0,
+          ), // Align with text after icon
           child: Text(
             value,
             style: isMultiline

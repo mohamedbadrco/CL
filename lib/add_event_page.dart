@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart'; // Added for file picking
@@ -20,14 +19,17 @@ class _AddEventPageState extends State<AddEventPage> {
   String _title = '';
   late DateTime _selectedDate;
   TimeOfDay _startTime = TimeOfDay.now();
-  TimeOfDay _endTime = TimeOfDay.fromDateTime(DateTime.now().add(const Duration(hours: 1)));
+  TimeOfDay _endTime = TimeOfDay.fromDateTime(
+    DateTime.now().add(const Duration(hours: 1)),
+  );
   String _location = '';
   String _notes = '';
 
   // Attachments state
   List<PlatformFile> _newlySelectedAttachments = [];
   List<EventAttachment> _existingAttachments = [];
-  List<EventAttachment> _initialAttachments = []; // To track deletions for existing events
+  List<EventAttachment> _initialAttachments =
+      []; // To track deletions for existing events
 
   bool get _isEditing => widget.eventToEdit != null; // Helper to check mode
 
@@ -50,13 +52,18 @@ class _AddEventPageState extends State<AddEventPage> {
       if (_startTime.hour == 23) {
         _endTime = const TimeOfDay(hour: 23, minute: 59);
       } else {
-        _endTime = TimeOfDay(hour: _startTime.hour + 1, minute: _startTime.minute);
+        _endTime = TimeOfDay(
+          hour: _startTime.hour + 1,
+          minute: _startTime.minute,
+        );
       }
     }
   }
 
   Future<void> _loadExistingAttachments(int eventId) async {
-    final attachments = await DatabaseHelper.instance.getAttachmentsForEvent(eventId);
+    final attachments = await DatabaseHelper.instance.getAttachmentsForEvent(
+      eventId,
+    );
     if (mounted) {
       setState(() {
         _existingAttachments = attachments;
@@ -69,7 +76,8 @@ class _AddEventPageState extends State<AddEventPage> {
     try {
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: true,
-        type: FileType.any, // Or specific types: FileType.custom(allowedExtensions: ['jpg', 'pdf', 'doc']),
+        type: FileType
+            .any, // Or specific types: FileType.custom(allowedExtensions: ['jpg', 'pdf', 'doc']),
       );
 
       if (result != null) {
@@ -79,9 +87,9 @@ class _AddEventPageState extends State<AddEventPage> {
       }
     } catch (e) {
       // Handle exceptions from file picker
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking files: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error picking files: $e')));
     }
   }
 
@@ -120,7 +128,8 @@ class _AddEventPageState extends State<AddEventPage> {
     if (pickedTime != null) {
       setState(() {
         _startTime = pickedTime;
-        if ((_endTime.hour * 60 + _endTime.minute) <= (_startTime.hour * 60 + _startTime.minute)) {
+        if ((_endTime.hour * 60 + _endTime.minute) <=
+            (_startTime.hour * 60 + _startTime.minute)) {
           _endTime = TimeOfDay(
             hour: _startTime.hour == 23 ? 23 : _startTime.hour + 1,
             minute: _startTime.hour == 23 ? 59 : _startTime.minute,
@@ -138,7 +147,8 @@ class _AddEventPageState extends State<AddEventPage> {
     );
     if (pickedTime != null) {
       // Validate that end time is after start time
-      if ((pickedTime.hour * 60 + pickedTime.minute) > (_startTime.hour * 60 + _startTime.minute)) {
+      if ((pickedTime.hour * 60 + pickedTime.minute) >
+          (_startTime.hour * 60 + _startTime.minute)) {
         setState(() {
           _endTime = pickedTime;
         });
@@ -154,7 +164,8 @@ class _AddEventPageState extends State<AddEventPage> {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
 
-      if ((_endTime.hour * 60 + _endTime.minute) <= (_startTime.hour * 60 + _startTime.minute)) {
+      if ((_endTime.hour * 60 + _endTime.minute) <=
+          (_startTime.hour * 60 + _startTime.minute)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('End time must be after start time.')),
         );
@@ -162,10 +173,24 @@ class _AddEventPageState extends State<AddEventPage> {
       }
 
       final dbHelper = DatabaseHelper.instance;
-      final eventsOnSelectedDate = await dbHelper.getEventsForDate(_selectedDate);
+      final eventsOnSelectedDate = await dbHelper.getEventsForDate(
+        _selectedDate,
+      );
 
-      final newEventStartDateTime = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, _startTime.hour, _startTime.minute);
-      final newEventEndDateTime = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, _endTime.hour, _endTime.minute);
+      final newEventStartDateTime = DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        _startTime.hour,
+        _startTime.minute,
+      );
+      final newEventEndDateTime = DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        _endTime.hour,
+        _endTime.minute,
+      );
 
       for (final existingEvent in eventsOnSelectedDate) {
         // If editing, skip checking against the event itself
@@ -181,7 +206,9 @@ class _AddEventPageState extends State<AddEventPage> {
             newEventEndDateTime.isAfter(existingEventStartDateTime)) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error: This time conflicts with "${existingEvent.title}". Please choose a different time.'),
+              content: Text(
+                'Error: This time conflicts with "${existingEvent.title}". Please choose a different time.',
+              ),
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
@@ -193,8 +220,10 @@ class _AddEventPageState extends State<AddEventPage> {
         id: _isEditing ? widget.eventToEdit!.id : null,
         title: _title,
         date: _selectedDate,
-        startTime: '${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}',
-        endTime: '${_endTime.hour.toString().padLeft(2, '0')}:${_endTime.minute.toString().padLeft(2, '0')}',
+        startTime:
+            '${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}',
+        endTime:
+            '${_endTime.hour.toString().padLeft(2, '0')}:${_endTime.minute.toString().padLeft(2, '0')}',
         location: _location,
         description: _notes,
       );
@@ -207,7 +236,11 @@ class _AddEventPageState extends State<AddEventPage> {
 
         // Handle deleted attachments
         final removedDBAttachments = _initialAttachments
-            .where((initial) => !_existingAttachments.any((current) => current.id == initial.id))
+            .where(
+              (initial) => !_existingAttachments.any(
+                (current) => current.id == initial.id,
+              ),
+            )
             .toList();
         for (final attachment in removedDBAttachments) {
           if (attachment.id != null) {
@@ -215,7 +248,9 @@ class _AddEventPageState extends State<AddEventPage> {
           }
         }
       } else {
-        eventId = await dbHelper.insertEvent(eventData); // insertEvent returns the new ID
+        eventId = await dbHelper.insertEvent(
+          eventData,
+        ); // insertEvent returns the new ID
       }
 
       // Save new attachments
@@ -226,7 +261,7 @@ class _AddEventPageState extends State<AddEventPage> {
       }
 
       if (mounted) {
-        Navigator.of(context).pop(_isEditing ? eventData : true); 
+        Navigator.of(context).pop(_isEditing ? eventData : true);
       }
     }
   }
@@ -237,15 +272,22 @@ class _AddEventPageState extends State<AddEventPage> {
     final inputDecorationTheme = InputDecorationTheme(
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8.0),
-        borderSide: BorderSide(color: theme.colorScheme.onSurface.withOpacity(0.3)),
+        borderSide: BorderSide(
+          color: theme.colorScheme.onSurface.withOpacity(0.3),
+        ),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8.0),
         borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
       ),
-      labelStyle: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7)),
+      labelStyle: TextStyle(
+        color: theme.colorScheme.onSurface.withOpacity(0.7),
+      ),
       floatingLabelStyle: TextStyle(color: theme.colorScheme.primary),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 16.0,
+        vertical: 12.0,
+      ),
     );
 
     // Combine existing and new attachments for display
@@ -256,7 +298,10 @@ class _AddEventPageState extends State<AddEventPage> {
       attachmentWidgets.add(
         ListTile(
           leading: const Icon(Icons.attach_file),
-          title: Text(attachment.filePath.split(Platform.pathSeparator).last, overflow: TextOverflow.ellipsis), // Show filename
+          title: Text(
+            attachment.filePath.split(Platform.pathSeparator).last,
+            overflow: TextOverflow.ellipsis,
+          ), // Show filename
           trailing: IconButton(
             icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
             onPressed: () => _removeExistingAttachment(attachment),
@@ -268,8 +313,10 @@ class _AddEventPageState extends State<AddEventPage> {
     for (var file in _newlySelectedAttachments) {
       attachmentWidgets.add(
         ListTile(
-          leading: const Icon(Icons.attach_file_outlined), // Slightly different icon for new
-          title: Text(file.name,  overflow: TextOverflow.ellipsis),
+          leading: const Icon(
+            Icons.attach_file_outlined,
+          ), // Slightly different icon for new
+          title: Text(file.name, overflow: TextOverflow.ellipsis),
           trailing: IconButton(
             icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
             onPressed: () => _removeNewAttachment(file),
@@ -277,7 +324,6 @@ class _AddEventPageState extends State<AddEventPage> {
         ),
       );
     }
-
 
     return Scaffold(
       appBar: AppBar(
@@ -292,7 +338,7 @@ class _AddEventPageState extends State<AddEventPage> {
             child: Text(
               'Save',
               style: TextStyle(
-                color: theme.colorScheme.primary,
+                color: theme.colorScheme.onBackground,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
@@ -329,42 +375,72 @@ class _AddEventPageState extends State<AddEventPage> {
               ),
               const SizedBox(height: 20),
               ListTile(
-                leading: Icon(Icons.calendar_today, color: theme.colorScheme.primary.withOpacity(0.8)),
+                leading: Icon(
+                  Icons.calendar_today,
+                  color: theme.colorScheme.onBackground,
+                ),
                 title: Text(
                   DateFormat.yMMMMd().format(_selectedDate),
-                  style: TextStyle(fontSize: 16, color: theme.colorScheme.onSurface),
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: theme.colorScheme.onSurface,
+                  ),
                 ),
-                trailing: Icon(Icons.edit_calendar_outlined, color: theme.colorScheme.primary),
+                trailing: Icon(
+                  Icons.edit_calendar_outlined,
+                  color: theme.colorScheme.onBackground,
+                ),
                 onTap: _pickDate,
-                tileColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+                tileColor: theme.colorScheme.surfaceContainerHighest
+                    .withOpacity(0.3),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
               ),
               const SizedBox(height: 16),
               Row(
                 children: [
                   Expanded(
                     child: ListTile(
-                      leading: Icon(Icons.access_time, color: theme.colorScheme.primary.withOpacity(0.8)),
+                      leading: Icon(
+                        Icons.access_time,
+                        color: theme.colorScheme.onBackground,
+                      ),
                       title: Text(
                         'Starts: ${_startTime.format(context)}',
-                        style: TextStyle(fontSize: 16, color: theme.colorScheme.onSurface),
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: theme.colorScheme.onBackground,
+                        ),
                       ),
                       onTap: _pickStartTime,
-                      tileColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+                      tileColor: theme.colorScheme.surfaceContainerHighest
+                          .withOpacity(0.3),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: ListTile(
-                      leading: Icon(Icons.access_time_filled, color: theme.colorScheme.primary.withOpacity(0.8)),
+                      leading: Icon(
+                        Icons.access_time_filled,
+                        color: theme.colorScheme.onBackground,
+                      ),
                       title: Text(
                         'Ends: ${_endTime.format(context)}',
-                         style: TextStyle(fontSize: 16, color: theme.colorScheme.onSurface),
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: theme.colorScheme.onSurface,
+                        ),
                       ),
                       onTap: _pickEndTime,
-                      tileColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+                      tileColor: theme.colorScheme.surfaceContainerHighest
+                          .withOpacity(0.3),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
                     ),
                   ),
                 ],
@@ -377,10 +453,18 @@ class _AddEventPageState extends State<AddEventPage> {
                 decoration: InputDecoration(
                   labelText: 'Location (Optional)',
                   hintText: 'Add location',
-                  icon: Icon(Icons.location_on_outlined, color: theme.colorScheme.secondary.withOpacity(0.8)),
+                  icon: Icon(
+                    Icons.location_on_outlined,
+                    color: theme.colorScheme.secondary.withOpacity(0.8),
+                  ),
                   border: InputBorder.none,
-                  focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: theme.colorScheme.primary)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12.0),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: theme.colorScheme.primary),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 0,
+                    vertical: 12.0,
+                  ),
                 ),
                 onSaved: (value) => _location = value ?? '',
                 style: TextStyle(color: theme.colorScheme.onSurface),
@@ -392,10 +476,18 @@ class _AddEventPageState extends State<AddEventPage> {
                 decoration: InputDecoration(
                   labelText: 'Notes (Optional)',
                   hintText: 'Add notes',
-                  icon: Icon(Icons.notes_outlined, color: theme.colorScheme.secondary.withOpacity(0.8)),
+                  icon: Icon(
+                    Icons.notes_outlined,
+                    color: theme.colorScheme.secondary.withOpacity(0.8),
+                  ),
                   border: InputBorder.none,
-                  focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: theme.colorScheme.primary)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12.0),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: theme.colorScheme.primary),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 0,
+                    vertical: 12.0,
+                  ),
                 ),
                 onSaved: (value) => _notes = value ?? '',
                 style: TextStyle(color: theme.colorScheme.onSurface),
@@ -422,7 +514,9 @@ class _AddEventPageState extends State<AddEventPage> {
                   padding: const EdgeInsets.symmetric(vertical: 8.0),
                   child: Text(
                     'No attachments added.',
-                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.6)),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 )

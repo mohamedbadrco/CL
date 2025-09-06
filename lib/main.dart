@@ -195,7 +195,8 @@ class DayEventsScreen extends StatefulWidget {
 class _DayEventsScreenState extends State<DayEventsScreen> {
   List<Event> _dayEvents = [];
   final dbHelper = DatabaseHelper.instance;
-  final double _hourHeight = 60.0; // Consider making this a constant or passed in
+  final double _hourHeight =
+      60.0; // Consider making this a constant or passed in
   final int _minHour = 0; // Consider making this a constant or passed in
   final int _maxHour = 23; // Consider making this a constant or passed in
 
@@ -215,7 +216,7 @@ class _DayEventsScreenState extends State<DayEventsScreen> {
   }
 
   void _handleEventChangeFromDetails() {
-    _loadDayEvents(); 
+    _loadDayEvents();
     widget.onMasterListShouldUpdate();
   }
 
@@ -276,39 +277,30 @@ class _CalendarAppState extends State<CalendarApp> {
       onSurface: const Color(0xFF1c1c1e),
       background: const Color(0xFFebebf0),
       surface: const Color(0xFFebebf0),
-      onPrimary: const Color(
-        0xFF30D158,
-      ), 
+      onPrimary: const Color(0xFF30D158),
       primary: const Color(0xFF1c1c1e),
       secondary: const Color.fromRGBO(0, 137, 50, 1),
       onSecondary: const Color(0xFFebebf0),
       error: const Color(0xFFff4345),
       onError: const Color(0xFFebebf0),
       brightness: Brightness.light,
-      primaryContainer: const Color(0xFFDCFEE2), 
-      onPrimaryContainer: const Color(0xFF0A3811), 
+      primaryContainer: const Color(0xFFDCFEE2),
+      onPrimaryContainer: const Color(0xFF0A3811),
       secondaryContainer: const Color(0xFFD4F5D8),
-      onSecondaryContainer: const Color(0xFF00210B), 
-      outlineVariant: Colors.grey.shade300, 
+      onSecondaryContainer: const Color(0xFF00210B),
+      outlineVariant: const Color(0xFF1c1c1e),
     );
 
     final darkColorScheme = ColorScheme(
       brightness: Brightness.dark,
       background: const Color(0xFF1c1c1e),
-      surface: const Color(0xFF1c1c1e), 
+      surface: const Color(0xFF1c1c1e),
       onBackground: const Color(0xFFebebf0),
       onSurface: const Color(0xFFebebf0),
-      onPrimary: const Color(
-        0xFF30D158,
-      ), 
-      primary: const Color.fromRGBO(
-        58,
-        58,
-        60,
-        1,
-      ), 
-      secondary: const Color(0xFF30D158), 
-      onSecondary: const Color(0xFF1c1c1e), 
+      onPrimary: const Color(0xFF30D158),
+      primary: const Color.fromRGBO(58, 58, 60, 1),
+      secondary: const Color(0xFF30D158),
+      onSecondary: const Color(0xFF1c1c1e),
       error: const Color(0xFFff4345),
       onError: const Color(0xFFebebf0),
       primaryContainer: const Color(0xFF1E4B27),
@@ -375,7 +367,7 @@ class _CalendarAppState extends State<CalendarApp> {
         scaffoldBackgroundColor: darkColorScheme.background,
         appBarTheme: AppBarTheme(
           elevation: 0,
-          backgroundColor: darkColorScheme.surface, 
+          backgroundColor: darkColorScheme.surface,
           foregroundColor: darkColorScheme.onSurface,
           titleTextStyle: GoogleFonts.inter(
             textStyle: TextStyle(
@@ -400,7 +392,7 @@ class _CalendarAppState extends State<CalendarApp> {
           ),
           labelLarge: GoogleFonts.inter(
             textStyle: TextStyle(color: darkColorScheme.onBackground),
-          ), 
+          ),
           bodyMedium: GoogleFonts.inter(
             textStyle: TextStyle(
               color: darkColorScheme.onSurface.withOpacity(0.87),
@@ -414,12 +406,10 @@ class _CalendarAppState extends State<CalendarApp> {
             textStyle: TextStyle(color: darkColorScheme.onSurface),
           ),
         ),
-        iconTheme: IconThemeData(
-          color: darkColorScheme.primary,
-        ), 
+        iconTheme: IconThemeData(color: darkColorScheme.primary),
         dividerColor: darkColorScheme.outlineVariant,
         floatingActionButtonTheme: FloatingActionButtonThemeData(
-          backgroundColor: darkColorScheme.secondary, 
+          backgroundColor: darkColorScheme.secondary,
           foregroundColor: darkColorScheme.onSecondary,
         ),
       ),
@@ -544,14 +534,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
             _isFetchingAiSummary = false;
           });
         }
-        return; 
+        return;
       }
     }
 
     if (mounted) {
       setState(() {
         _isFetchingAiSummary = true;
-        _aiDaySummary = null; 
+        _aiDaySummary = null;
       });
     }
 
@@ -584,12 +574,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Future<void> _resetDatabase() async {
-    await dbHelper.resetDatabase(); 
-    await _loadEventsFromDb(); 
+    await dbHelper.resetDatabase();
+    await _loadEventsFromDb();
     if (mounted) {
       setState(() {
-        _events.clear(); 
-        _aiDaySummary = null; 
+        _events.clear();
+        _aiDaySummary = null;
       });
       if (_selectedDate != null) {
         _fetchAiDaySummary(_selectedDate!);
@@ -707,7 +697,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               _focusedMonth.year,
               _focusedMonth.month + 1,
               0,
-            ); 
+            );
           }
           _selectedDate = newSelectedCandidate;
         }
@@ -719,8 +709,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted && _monthPageController.hasClients) {
             final currentPage = _monthPageController.page?.round();
-            if (currentPage != targetMonthPageIndex) {
-            }
+            if (currentPage != targetMonthPageIndex) {}
           }
         });
       }
@@ -733,7 +722,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
 
     if (eventWasAdded == true && mounted) {
-      await _loadEventsFromDb(); 
+      await _loadEventsFromDb();
       final DateTime eventDayOnly = DateTime(
         initialDate.year,
         initialDate.month,
@@ -743,7 +732,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           _selectedDate!.year == eventDayOnly.year &&
           _selectedDate!.month == eventDayOnly.month &&
           _selectedDate!.day == eventDayOnly.day) {
-        _fetchAiDaySummary(_selectedDate!,);
+        _fetchAiDaySummary(_selectedDate!);
       } else if (_selectedDate == null && eventDayOnly == _today) {
         _selectedDate = _today;
         _fetchAiDaySummary(_today);
@@ -758,7 +747,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         builder: (context) => DayEventsScreen(
           date: date,
           onMasterListShouldUpdate: () async {
-            await _loadEventsFromDb(); 
+            await _loadEventsFromDb();
             if (_selectedDate != null &&
                 mounted &&
                 _selectedDate!.year == date.year &&
@@ -827,14 +816,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       children: <TextSpan>[
                         TextSpan(
                           text: DateFormat.MMMM().format(_focusedMonth),
-                          style: (theme.textTheme.titleLarge ?? const TextStyle())
-                              .copyWith(
-                                fontSize:
-                                    (theme.textTheme.titleLarge?.fontSize ??
-                                        20.0) *
-                                    1.2,
-                                color: theme.colorScheme.onPrimary,
-                              ),
+                          style:
+                              (theme.textTheme.titleLarge ?? const TextStyle())
+                                  .copyWith(
+                                    fontSize:
+                                        (theme.textTheme.titleLarge?.fontSize ??
+                                            20.0) *
+                                        1.2,
+                                    color: theme.colorScheme.onPrimary,
+                                  ),
                         ),
                         TextSpan(
                           text: ' ${DateFormat.y().format(_focusedMonth)}',
@@ -890,9 +880,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             name.toUpperCase(),
                             style: theme.textTheme.labelSmall?.copyWith(
                               fontWeight: FontWeight.bold,
-                              fontSize: 10, 
+                              fontSize: 10,
                               color: theme.brightness == Brightness.dark
-                                  ? theme.colorScheme.onBackground.withOpacity(0.7)
+                                  ? theme.colorScheme.onBackground.withOpacity(
+                                      0.7,
+                                    )
                                   : theme.colorScheme.primary.withOpacity(0.8),
                             ),
                           ),
@@ -913,8 +905,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       onPageChanged: (pageIndex) {
                         if (mounted) {
                           setState(() {
-                            _focusedWeekStart = _getDateFromWeekPageIndex(pageIndex);
-                            _selectedDate = _focusedWeekStart; 
+                            _focusedWeekStart = _getDateFromWeekPageIndex(
+                              pageIndex,
+                            );
+                            _selectedDate = _focusedWeekStart;
                             _fetchAiDaySummary(_selectedDate!);
                           });
                         }
@@ -940,7 +934,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       onPageChanged: (pageIndex) {
                         if (mounted) {
                           setState(() {
-                            final newFocusedMonth = _getDateFromMonthPageIndex(pageIndex);
+                            final newFocusedMonth = _getDateFromMonthPageIndex(
+                              pageIndex,
+                            );
                             _focusedMonth = newFocusedMonth;
                             bool summaryNeedsUpdate = false;
 
@@ -1008,7 +1004,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
           _addEvent(_selectedDate ?? _today);
         },
         tooltip: 'Add Event',
-        child: const Icon(Icons.add),
+        child: Icon(Icons.add, color: theme.colorScheme.onPrimary),
+        backgroundColor: theme.colorScheme.outlineVariant,
       ),
     );
   }
