@@ -161,6 +161,34 @@ class _AddEventPageState extends State<AddEventPage> {
         return;
       }
 
+      final dbHelper = DatabaseHelper.instance;
+      final eventsOnSelectedDate = await dbHelper.getEventsForDate(_selectedDate);
+
+      final newEventStartDateTime = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, _startTime.hour, _startTime.minute);
+      final newEventEndDateTime = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, _endTime.hour, _endTime.minute);
+
+      for (final existingEvent in eventsOnSelectedDate) {
+        // If editing, skip checking against the event itself
+        if (_isEditing && existingEvent.id == widget.eventToEdit!.id) {
+          continue;
+        }
+
+        final existingEventStartDateTime = existingEvent.startTimeAsDateTime;
+        final existingEventEndDateTime = existingEvent.endTimeAsDateTime;
+
+        // Check for overlap
+        if (newEventStartDateTime.isBefore(existingEventEndDateTime) &&
+            newEventEndDateTime.isAfter(existingEventStartDateTime)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: This time conflicts with "${existingEvent.title}". Please choose a different time.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+          return; // Stop saving
+        }
+      }
+
       final eventData = Event(
         id: _isEditing ? widget.eventToEdit!.id : null,
         title: _title,
@@ -171,7 +199,6 @@ class _AddEventPageState extends State<AddEventPage> {
         description: _notes,
       );
 
-      final dbHelper = DatabaseHelper.instance;
       int eventId;
 
       if (_isEditing) {
@@ -199,9 +226,6 @@ class _AddEventPageState extends State<AddEventPage> {
       }
 
       if (mounted) {
-        // Pop with the event (or true for older flow)
-        // For simplicity, we pop 'true' indicating success, EventDetailsPage will re-fetch.
-        // A more advanced flow would pop the updated/new Event object with attachments.
         Navigator.of(context).pop(_isEditing ? eventData : true); 
       }
     }
