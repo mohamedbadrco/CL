@@ -83,7 +83,7 @@ class DayScheduleView extends StatelessWidget {
             child: Text(
               DateFormat('h a')
                   .format(DateTime(date.year, date.month, date.day, hour)),
-              style: GoogleFonts.openSans(textStyle: TextStyle(fontSize: 12, color: timeLabelColor, fontWeight: FontWeight.w800)),
+              style: GoogleFonts.openSans(textStyle: TextStyle(fontSize: 10, color: timeLabelColor, fontWeight: FontWeight.w800)),
             ),
           ),
         ),
@@ -408,10 +408,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     DateTime.now().day - (DateTime.now().weekday % 7),
   );
 
-  final double _hourHeight = 60.0;
+  final double _hourHeight = 80.0;
   final int _minHour = 0;
   final int _maxHour = 23;
-  final double _timeLabelWidth = 50.0;
+  final double _timeLabelWidth = 20.0; // Changed from 30.0
 
   final dbHelper = DatabaseHelper.instance;
   final GeminiService _geminiService = GeminiService();
@@ -908,11 +908,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
           width: _timeLabelWidth,
           height: _hourHeight,
           child: Container(
-            padding: const EdgeInsets.only(right: 4.0),
-            alignment: Alignment.centerRight,
+            padding: EdgeInsets.zero, // Changed from const EdgeInsets.only(right: 4.0)
+            alignment: Alignment.centerLeft, // Changed from Alignment.centerRight
             child: Text(
-              DateFormat('HH:mm').format(DateTime(2000, 1, 1, hour)),
-              style: theme.textTheme.labelSmall?.copyWith(fontSize: 10, color: timeLabelColor), // inter from theme
+              DateFormat('HH').format(DateTime(2000, 1, 1, hour)),
+              style: theme.textTheme.labelSmall?.copyWith(fontSize: 12, color: timeLabelColor), // inter from theme
             ),
           ),
         ),
@@ -1239,7 +1239,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
           Expanded( 
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              padding: _isWeekView ? EdgeInsets.zero : const EdgeInsets.symmetric(horizontal: 8.0),
               child: _isWeekView
                   ? PageView.builder( 
                       controller: _weekPageController,
