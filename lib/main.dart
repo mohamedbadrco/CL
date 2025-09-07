@@ -107,9 +107,8 @@ class DayScheduleView extends StatelessWidget {
   Widget _buildEvents(BuildContext context, List<Event> dayEvents) {
     List<Widget> eventWidgets = [];
     final theme = Theme.of(context);
-    final eventBgColor = theme.colorScheme.secondaryContainer;
-    final eventTextColor = theme.colorScheme.onSecondaryContainer;
-    // final geminiService = GeminiService(); // GeminiService not used here
+    final eventBgColor = theme.colorScheme.onPrimary; 
+    final eventTextColor = theme.colorScheme.primary; // Changed for better contrast
 
     for (var event in dayEvents) {
       final double topOffset = _calculateTopOffset(event.startTimeAsTimeOfDay);
@@ -145,7 +144,7 @@ class DayScheduleView extends StatelessWidget {
                 event.title,
                 style: GoogleFonts.inter(
                   textStyle: TextStyle(
-                    color: eventTextColor,
+                    color: eventTextColor, // Will use theme.colorScheme.primary
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
@@ -196,9 +195,9 @@ class _DayEventsScreenState extends State<DayEventsScreen> {
   List<Event> _dayEvents = [];
   final dbHelper = DatabaseHelper.instance;
   final double _hourHeight =
-      60.0; // Consider making this a constant or passed in
-  final int _minHour = 0; // Consider making this a constant or passed in
-  final int _maxHour = 23; // Consider making this a constant or passed in
+      60.0; 
+  final int _minHour = 0; 
+  final int _maxHour = 23; 
 
   @override
   void initState() {
@@ -287,7 +286,7 @@ class _CalendarAppState extends State<CalendarApp> {
       primaryContainer: const Color(0xFFDCFEE2),
       onPrimaryContainer: const Color(0xFF0A3811),
       secondaryContainer: const Color(0xFFD4F5D8),
-      onSecondaryContainer: const Color(0xFF00210B),
+      onSecondaryContainer: const Color(0xFF00210B), 
       outlineVariant: const Color(0xFF1c1c1e),
     );
 
@@ -297,7 +296,7 @@ class _CalendarAppState extends State<CalendarApp> {
       surface: const Color(0xFF1c1c1e),
       onBackground: const Color(0xFFebebf0),
       onSurface: const Color(0xFFebebf0),
-      onPrimary: const Color(0xFF30D158),
+      onPrimary: const Color(0xFF30D158), 
       primary: const Color.fromRGBO(58, 58, 60, 1),
       secondary: const Color(0xFF30D158),
       onSecondary: const Color(0xFF1c1c1e),
@@ -305,8 +304,8 @@ class _CalendarAppState extends State<CalendarApp> {
       onError: const Color(0xFFebebf0),
       primaryContainer: const Color(0xFF1E4B27),
       onPrimaryContainer: const Color(0xFFBEF0C4),
-      secondaryContainer: const Color(0xFF2B5C34),
-      onSecondaryContainer: const Color(0xFFE0FFE7),
+      secondaryContainer: const Color(0xFF2B5C34), 
+      onSecondaryContainer: const Color(0xFFE0FFE7), 
       outlineVariant: Colors.grey.shade700,
     );
 
@@ -664,54 +663,34 @@ class _CalendarScreenState extends State<CalendarScreen> {
       _isWeekView = !_isWeekView;
 
       if (_isWeekView) {
-        DateTime weekViewAnchorDate = _selectedDate ?? _today;
-        _focusedWeekStart = weekViewAnchorDate.subtract(
-          Duration(days: weekViewAnchorDate.weekday % 7),
-        );
+        _focusedWeekStart = _today.subtract(Duration(days: _today.weekday % 7));
+        _selectedDate = _today; 
+        final int targetWeekPage = _calculateWeekPageIndex(_focusedWeekStart);
+
         if (_weekPageController.hasClients) _weekPageController.dispose();
-        _weekPageController = PageController(
-          initialPage: _calculateWeekPageIndex(_focusedWeekStart),
-        );
-      } else {
-        _focusedMonth = DateTime(
-          _selectedDate?.year ?? _today.year,
-          _selectedDate?.month ?? _today.month,
-        );
-        int targetMonthPageIndex = _calculateMonthPageIndex(_focusedMonth);
-
-        if (_monthPageController.hasClients) _monthPageController.dispose();
-        _monthPageController = PageController(
-          initialPage: targetMonthPageIndex,
-        );
-
-        if (_selectedDate == null ||
-            _selectedDate!.month != _focusedMonth.month ||
-            _selectedDate!.year != _focusedMonth.year) {
-          DateTime newSelectedCandidate = DateTime(
-            _focusedMonth.year,
-            _focusedMonth.month,
-            _selectedDate?.day ?? _today.day,
-          );
-          if (newSelectedCandidate.month != _focusedMonth.month) {
-            newSelectedCandidate = DateTime(
-              _focusedMonth.year,
-              _focusedMonth.month + 1,
-              0,
-            );
-          }
-          _selectedDate = newSelectedCandidate;
-        }
-
-        if (_selectedDate != null) {
-          _fetchAiDaySummary(_selectedDate!);
-        }
+        _weekPageController = PageController(initialPage: targetWeekPage);
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && _monthPageController.hasClients) {
-            final currentPage = _monthPageController.page?.round();
-            if (currentPage != targetMonthPageIndex) {}
+          if (mounted && _weekPageController.hasClients && _weekPageController.page?.round() != targetWeekPage) {            _weekPageController.jumpToPage(targetWeekPage);
           }
         });
+
+        _fetchAiDaySummary(_selectedDate!);
+      } else {
+        _focusedMonth = DateTime(_today.year, _today.month);
+        _selectedDate = _today; 
+        final int targetMonthPage = _calculateMonthPageIndex(_focusedMonth);
+
+        if (_monthPageController.hasClients) _monthPageController.dispose();
+        _monthPageController = PageController(initialPage: targetMonthPage);
+        
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _monthPageController.hasClients && _monthPageController.page?.round() != targetMonthPage) {
+            _monthPageController.jumpToPage(targetMonthPage);
+          }
+        });
+        
+        _fetchAiDaySummary(_selectedDate!); 
       }
     });
   }
@@ -754,6 +733,33 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 _selectedDate!.month == date.month &&
                 _selectedDate!.day == date.day) {
               _fetchAiDaySummary(_selectedDate!);
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _navigateToEventDetails(Event event) async {
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => EventDetailsPage(
+          event: event,
+          onEventChanged: (Event? updatedEvent) async {
+            if (mounted) {
+              await _loadEventsFromDb();
+              final DateTime dateToRefresh = updatedEvent?.date ?? event.date;
+              final DateTime dayToRefreshSummary = DateTime(dateToRefresh.year, dateToRefresh.month, dateToRefresh.day);
+              _fetchAiDaySummary(dayToRefreshSummary);
+
+              if (_selectedDate != null &&
+                  _selectedDate!.year == dayToRefreshSummary.year &&
+                  _selectedDate!.month == dayToRefreshSummary.month &&
+                  _selectedDate!.day == dayToRefreshSummary.day &&
+                  _selectedDate != dayToRefreshSummary) { // Check if it's not the exact same day object already handled
+                    _fetchAiDaySummary(_selectedDate!); // Fetch for the main calendar's selected day if it matches
+              }
             }
           },
         ),
@@ -908,7 +914,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             _focusedWeekStart = _getDateFromWeekPageIndex(
                               pageIndex,
                             );
-                            _selectedDate = _focusedWeekStart;
+                            // When week changes, select the first day of that week by default
+                            _selectedDate = _focusedWeekStart; 
                             _fetchAiDaySummary(_selectedDate!);
                           });
                         }
@@ -923,7 +930,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           minHour: _minHour,
                           maxHour: _maxHour,
                           timeLabelWidth: _timeLabelWidth,
-                          onShowDayEvents: _showDayEventsTimeSlotsPage,
+                          onShowDayEvents: _showDayEventsTimeSlotsPage, // Retained if other uses exist
+                          onEventTapped: _navigateToEventDetails, // New: for event tap
                           onGoToPreviousWeek: _goToPreviousWeek,
                           onGoToNextWeek: _goToNextWeek,
                         );

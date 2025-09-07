@@ -10,7 +10,8 @@ class WeekPageContent extends StatelessWidget {
   final int minHour;
   final int maxHour;
   final double timeLabelWidth;
-  final Function(DateTime) onShowDayEvents;
+  final Function(DateTime) onShowDayEvents; // Kept for now, if needed elsewhere
+  final Function(Event) onEventTapped; // New callback for tapping an event
   final VoidCallback onGoToPreviousWeek;
   final VoidCallback onGoToNextWeek;
 
@@ -24,6 +25,7 @@ class WeekPageContent extends StatelessWidget {
     required this.maxHour,
     required this.timeLabelWidth,
     required this.onShowDayEvents,
+    required this.onEventTapped, // Added to constructor
     required this.onGoToPreviousWeek,
     required this.onGoToNextWeek,
   });
@@ -106,18 +108,18 @@ class WeekPageContent extends StatelessWidget {
           width: columnWidth - 4.0,
           height: eventHeight,
           child: GestureDetector(
-            onTap: () => onShowDayEvents(day),
+            onTap: () => onEventTapped(event), // Changed to use onEventTapped
             child: Container(
               padding: const EdgeInsets.all(4.0),
               margin: const EdgeInsets.only(bottom: 1.0),
               decoration: BoxDecoration(
-                color: theme.colorScheme.secondaryContainer,
+                color: theme.colorScheme.onPrimary, 
                 borderRadius: BorderRadius.circular(4.0),
               ),
               child: Text(
                 event.title,
                 style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSecondaryContainer,
+                  color: theme.colorScheme.primary, 
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
                 ),

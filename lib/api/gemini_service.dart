@@ -70,7 +70,7 @@ class GeminiService {
         "Please provide a concise summary for the following events scheduled on ${DateFormat.yMMMd().format(dateForEvents)}:\n\n" +
         eventDetails + // eventDetails already ends with
         // if not empty and contains the list
-        "Highlight the busiest parts of the day or any notable sequences of events and provide summary of the weather on ${DateFormat.yMMMd().format(dateForEvents)}  ";
+        "Highlight the busiest parts of the day or any notable sequences of events }  ";
 
     print("Formatted Prompt for Summary:\n$promptContent");
 
