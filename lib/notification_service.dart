@@ -9,13 +9,11 @@ import './database_helper.dart'; // For Event class
 import 'package:alarm/alarm.dart'; // Import for the new alarm package
 import 'package:flutter/material.dart';
 
-// Initialize the flutter_local_notifications plugin (can still be used for other types of notifications)
+// Initialize the flutter_local_notifications plugin (can still be used for other types of notifications, if any)
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
-// bool _exactAlarmsPermitted = false; // This was for flutter_local_notifications exact alarms
-
-// --- flutter_local_notifications specific details (can be kept for other notifications) ---
+// --- flutter_local_notifications specific details (can be kept for other notifications, if any) ---
 const AndroidNotificationDetails androidNotificationDetails =
     AndroidNotificationDetails(
       'event_channel_id', // Channel ID
@@ -25,7 +23,7 @@ const AndroidNotificationDetails androidNotificationDetails =
       priority: Priority.high,
       showWhen: true,
       playSound:
-          true, // This might be overridden by the alarm package for alarms
+          true,
       enableVibration: true,
     );
 
@@ -44,10 +42,9 @@ const NotificationDetails notificationDetails = NotificationDetails(
 // --- End flutter_local_notifications specific details ---
 
 Future<void> initializeNotifications() async {
-  // Initialize timezone data - MUST be called before scheduling (if flutter_local_notifications uses it)
   tz.initializeTimeZones();
 
-  // Initialize flutter_local_notifications (for non-alarm notifications if any)
+  // Initialize flutter_local_notifications (if still needed for other purposes)
   const AndroidInitializationSettings initializationSettingsAndroid =
       AndroidInitializationSettings('@mipmap/ic_launcher');
   const DarwinInitializationSettings initializationSettingsDarwin =
@@ -67,17 +64,17 @@ Future<void> initializeNotifications() async {
         (NotificationResponse notificationResponse) async {
           final String? payload = notificationResponse.payload;
           if (payload != null) {
-            debugPrint('notification payload: $payload');
+            debugPrint('flutter_local_notifications payload: $payload');
           }
         },
     onDidReceiveBackgroundNotificationResponse: onNotificationTapBackground,
   );
-  await _createNotificationChannel(); // For flutter_local_notifications
-  // _requestPermissions(); // Original permissions for flutter_local_notifications
+  // Create notification channel for flutter_local_notifications (if still needed)
+  // await _createNotificationChannel(); 
 
   // Initialize the Alarm package
   try {
-    await Alarm.init(); // Or Alarm.initialize() - CHECK PACKAGE DOCS
+    await Alarm.init(); 
     print('Alarm package initialized successfully.');
   } catch (e) {
     print('Error initializing alarm package: $e');
@@ -86,39 +83,22 @@ Future<void> initializeNotifications() async {
   print('Notification/Alarm services initialized');
 }
 
-// Keep this for flutter_local_notifications if other general notifications are used
-// Future<void> _requestPermissions() async {
-//   flutterLocalNotificationsPlugin
-//       .resolvePlatformSpecificImplementation<
-//         IOSFlutterLocalNotificationsPlugin
-//       >()
-//       ?.requestPermissions(alert: true, badge: true, sound: true);
-//   final androidPlugin = flutterLocalNotificationsPlugin
+// This function was for flutter_local_notifications. Keep if still used elsewhere.
+// Future<void> _createNotificationChannel() async {
+//   const AndroidNotificationChannel channel = AndroidNotificationChannel(
+//     'event_channel_id', // Channel ID
+//     'Event Reminders', // Channel name
+//     description: 'Notifications for upcoming events',
+//     importance: Importance.max,
+//     playSound: true,
+//     showBadge: true,
+//   );
+//   await flutterLocalNotificationsPlugin
 //       .resolvePlatformSpecificImplementation<
 //         AndroidFlutterLocalNotificationsPlugin
-//       >();
-//   await androidPlugin
-//       ?.requestNotificationsPermission(); // For Android 13+ (notifications)
-//   // The 'alarm' package should handle its own exact alarm permissions if needed.
-//   // bool exactAlarmsPermittedFlNotif = await androidPlugin?.requestExactAlarmsPermission() ?? false;
+//       >()
+//       ?.createNotificationChannel(channel);
 // }
-
-// Keep this for flutter_local_notifications if other general notifications are used
-Future<void> _createNotificationChannel() async {
-  const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    'event_channel_id', // Channel ID
-    'Event Reminders', // Channel name
-    description: 'Notifications for upcoming events',
-    importance: Importance.max,
-    playSound: true,
-    showBadge: true,
-  );
-  await flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin
-      >()
-      ?.createNotificationChannel(channel);
-}
 
 Future<void> scheduleEventNotification(Event event) async {
   if (event.id == null) {
@@ -127,8 +107,6 @@ Future<void> scheduleEventNotification(Event event) async {
   }
 
   final DateTime eventStartTime = event.startTimeAsDateTime;
-  // Let's set the alarm 10 minutes before the event for consistency with old behavior
-  // Adjust this as needed (e.g., to eventStartTime directly)
   final DateTime alarmTime = eventStartTime.subtract(
     const Duration(minutes: 10),
   );
@@ -148,10 +126,10 @@ Future<void> scheduleEventNotification(Event event) async {
     final alarmSettings = AlarmSettings(
       id: event.id!,
       dateTime: alarmTime,
-      assetAudioPath: 'assets/good_morning.mp3', // MODIFIED: Using your specified asset
+      assetAudioPath: 'assets/good_morning.mp3',
       loopAudio: true,
       vibrate: true,
-      warningNotificationOnKill: Platform.isIOS, // Make sure dart:io is imported for Platform
+      warningNotificationOnKill: Platform.isIOS, 
       androidFullScreenIntent: true,
       volumeSettings: VolumeSettings.fade(
         volume: 0.8,
@@ -162,7 +140,7 @@ Future<void> scheduleEventNotification(Event event) async {
         title: 'Upcoming Event: ${event.title}',
         body: 'Starts at ${DateFormat.jm().format(eventStartTime)}',
         stopButton: 'Stop the alarm',
-        icon: 'notification_icon', // Ensure this drawable resource exists in android/app/src/main/res/drawable*
+        icon: 'notification_icon',
         iconColor: Color(0xff862778),
       ),
     );
@@ -198,45 +176,47 @@ Future<void> cancelAllNotifications() async {
   }
 }
 
-// This function remains for flutter_local_notifications (e.g., if you have other types of notifications)
-Future<void> showTestNotification() async {
-  await flutterLocalNotificationsPlugin.show(
-    0, // ID for test notification
-    'Test Flutter Local Notification',
-    'This is a test of flutter_local_notifications plugin.',
-    notificationDetails, // Uses the FLN details defined at the top
-  );
-  print('Test flutter_local_notification shown');
-}
+// // Test Notification function - REMOVED
+// Future<void> showTestNotification() async {
+//   await flutterLocalNotificationsPlugin.show(
+//     0, // ID for test notification
+//     'Test Flutter Local Notification',
+//     'This is a test of flutter_local_notifications plugin.',
+//     notificationDetails, // Uses the FLN details defined at the top
+//   );
+//   print('Test flutter_local_notification shown');
+// }
 
-Future<List<Map<String, dynamic>>> getPendingNotificationsWithDetails() async {
-  print(
-    'getPendingNotificationsWithDetails: This list is for flutter_local_notifications only.',
-  );
-  print('Alarms set by the \'alarm\' package are typically not listed here.');
+// // Pending Notifications function - COMMENTED OUT as it is for flutter_local_notifications
+// // and not relevant for alarms from the 'alarm' package.
+// Future<List<Map<String, dynamic>>> getPendingNotificationsWithDetails() async {
+//   print(
+//     'getPendingNotificationsWithDetails: This list is for flutter_local_notifications only.',
+//   );
+//   print('Alarms set by the \'alarm\' package are typically not listed here.');
 
-  final List<PendingNotificationRequest> pendingLocalNotifications =
-      await flutterLocalNotificationsPlugin.pendingNotificationRequests();
-  print(
-    'Pending flutter_local_notifications: ${pendingLocalNotifications.length}',
-  );
+//   final List<PendingNotificationRequest> pendingLocalNotifications =
+//       await flutterLocalNotificationsPlugin.pendingNotificationRequests();
+//   print(
+//     'Pending flutter_local_notifications: ${pendingLocalNotifications.length}',
+//   );
 
-  List<Map<String, dynamic>> detailedList = [];
-  for (var fln in pendingLocalNotifications) {
-    detailedList.add({
-      'id': fln.id,
-      'title': fln.title ?? 'N/A',
-      'body': fln.body ?? 'N/A',
-      'payload': fln.payload,
-      'type': 'Flutter Local Notification',
-    });
-  }
-  return detailedList;
-}
+//   List<Map<String, dynamic>> detailedList = [];
+//   for (var fln in pendingLocalNotifications) {
+//     detailedList.add({
+//       'id': fln.id,
+//       'title': fln.title ?? 'N/A',
+//       'body': fln.body ?? 'N/A',
+//       'payload': fln.payload,
+//       'type': 'Flutter Local Notification',
+//     });
+//   }
+//   return detailedList;
+// }
 
 @pragma('vm:entry-point')
 void onNotificationTapBackground(NotificationResponse notificationResponse) {
-  // This callback is for flutter_local_notifications
+  // This callback is for flutter_local_notifications (if still used for other purposes)
   final String? payload = notificationResponse.payload;
   if (payload != null) {
     debugPrint('Background flutter_local_notification payload: $payload');
@@ -250,4 +230,7 @@ Future<void> cleanupCompletedEventNotifications() async {
   print(
     'It currently attempts to clean up flutter_local_notifications, not alarms from the \'alarm\' package.',
   );
+  // TODO: Implement logic to iterate through your events from the database.
+  // For each event, if event.endTimeAsDateTime.isBefore(DateTime.now()),
+  // then call await Alarm.stop(event.id!) to cancel its alarm.
 }
