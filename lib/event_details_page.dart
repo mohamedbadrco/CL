@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import './database_helper.dart'; // Event class is in database_helper.dart
 import './add_event_page.dart'; // Import AddEventPage
+import './notification_service.dart'; // Import for cancelEventNotification
 import 'dart:io'; // For basename
 import 'package:open_filex/open_filex.dart'; // Import for opening files
 
@@ -44,6 +45,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
   Future<void> _deleteEvent(BuildContext context) async {
     if (_currentEvent.id != null) {
       await DatabaseHelper.instance.deleteEvent(_currentEvent.id!);
+      await cancelEventNotification(_currentEvent.id!);
       widget.onEventChanged?.call(null); // Pass null to indicate deletion
       if (mounted) {
         Navigator.of(context).pop(); // Pop EventDetailsPage

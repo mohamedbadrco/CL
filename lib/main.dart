@@ -3,11 +3,24 @@ import 'package:intl/intl.dart'; // For date formatting
 import 'package:google_fonts/google_fonts.dart'; // Added for Google Fonts
 import './add_event_page.dart'; // Import the new AddEventPage
 import './event_details_page.dart'; // Import the EventDetailsPage
-import './database_helper.dart'; // Import DatabaseHelper
+import './database_helper.dart'; // Import DatabaseHelper - defines Event
 import './api/gemini_service.dart';
 import './month_page.dart'; // Import MonthPageContent
 import './week_page.dart'; // Import WeekPageContent
+import './notification_service.dart'; // Import NotificationService
 // import 'package:flutter_dotenv/flutter_dotenv.dart'; // Commented out, ensure it's handled if needed
+
+// Updated main function:
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized(); // REQUIRED
+  try {
+    await initializeNotifications(); // Initialize notifications system
+  } catch (e) {
+    print('Error initializing notifications: $e');
+    // Continue running the app even if notifications fail
+  }
+  runApp(const CalendarApp());
+}
 
 class DayScheduleView extends StatelessWidget {
   final DateTime date;
@@ -107,8 +120,9 @@ class DayScheduleView extends StatelessWidget {
   Widget _buildEvents(BuildContext context, List<Event> dayEvents) {
     List<Widget> eventWidgets = [];
     final theme = Theme.of(context);
-    final eventBgColor = theme.colorScheme.onPrimary; 
-    final eventTextColor = theme.colorScheme.primary; // Changed for better contrast
+    final eventBgColor = theme.colorScheme.onPrimary;
+    final eventTextColor =
+        theme.colorScheme.primary; // Changed for better contrast
 
     for (var event in dayEvents) {
       final double topOffset = _calculateTopOffset(event.startTimeAsTimeOfDay);
@@ -194,10 +208,9 @@ class DayEventsScreen extends StatefulWidget {
 class _DayEventsScreenState extends State<DayEventsScreen> {
   List<Event> _dayEvents = [];
   final dbHelper = DatabaseHelper.instance;
-  final double _hourHeight =
-      60.0; 
-  final int _minHour = 0; 
-  final int _maxHour = 23; 
+  final double _hourHeight = 60.0;
+  final int _minHour = 0;
+  final int _maxHour = 23;
 
   @override
   void initState() {
@@ -247,10 +260,6 @@ class _DayEventsScreenState extends State<DayEventsScreen> {
   }
 }
 
-void main() {
-  runApp(const CalendarApp());
-}
-
 class CalendarApp extends StatefulWidget {
   const CalendarApp({super.key});
 
@@ -286,7 +295,7 @@ class _CalendarAppState extends State<CalendarApp> {
       primaryContainer: const Color(0xFFDCFEE2),
       onPrimaryContainer: const Color(0xFF0A3811),
       secondaryContainer: const Color(0xFFD4F5D8),
-      onSecondaryContainer: const Color(0xFF00210B), 
+      onSecondaryContainer: const Color(0xFF00210B),
       outlineVariant: const Color(0xFF1c1c1e),
     );
 
@@ -296,7 +305,7 @@ class _CalendarAppState extends State<CalendarApp> {
       surface: const Color(0xFF1c1c1e),
       onBackground: const Color(0xFFebebf0),
       onSurface: const Color(0xFFebebf0),
-      onPrimary: const Color(0xFF30D158), 
+      onPrimary: const Color(0xFF30D158),
       primary: const Color.fromRGBO(58, 58, 60, 1),
       secondary: const Color(0xFF30D158),
       onSecondary: const Color(0xFF1c1c1e),
@@ -304,8 +313,8 @@ class _CalendarAppState extends State<CalendarApp> {
       onError: const Color(0xFFebebf0),
       primaryContainer: const Color(0xFF1E4B27),
       onPrimaryContainer: const Color(0xFFBEF0C4),
-      secondaryContainer: const Color(0xFF2B5C34), 
-      onSecondaryContainer: const Color(0xFFE0FFE7), 
+      secondaryContainer: const Color(0xFF2B5C34),
+      onSecondaryContainer: const Color(0xFFE0FFE7),
       outlineVariant: Colors.grey.shade700,
     );
 
@@ -481,9 +490,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
       initialPage: _calculateWeekPageIndex(_focusedWeekStart),
     );
 
-    _loadEventsFromDb().then((_) {
+    _loadEventsFromDb().then((_) async {
+      try {
+        await cleanupCompletedEventNotifications();
+      } catch (e) {
+        print('Error cleaning up notifications: $e');
+      }
       if (_selectedDate != null && mounted) {
-        _fetchAiDaySummary(_selectedDate!);
+        try {
+          _fetchAiDaySummary(_selectedDate!);
+        } catch (e) {
+          print('Error fetching AI summary on launch: $e');
+        }
       }
     });
   }
@@ -573,15 +591,27 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Future<void> _resetDatabase() async {
+    // First, cancel all pending notifications before resetting the database
+    final allEvents = await dbHelper.getAllEvents();
+    for (var event in allEvents) {
+      if (event.id != null) {
+        await cancelEventNotification(
+          event.id!,
+        ); // Cancel notification for each event
+      }
+    }
+
     await dbHelper.resetDatabase();
-    await _loadEventsFromDb();
+    await _loadEventsFromDb(); // Reload (empty) events
     if (mounted) {
       setState(() {
-        _events.clear();
+        _events.clear(); // Ensure UI reflects the cleared events
         _aiDaySummary = null;
       });
       if (_selectedDate != null) {
-        _fetchAiDaySummary(_selectedDate!);
+        _fetchAiDaySummary(
+          _selectedDate!,
+        ); // Attempt to fetch summary for selected day (likely empty)
       } else {
         setState(() {
           _aiDaySummary = "Database reset. Select a day to see its AI summary.";
@@ -664,48 +694,60 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
       if (_isWeekView) {
         _focusedWeekStart = _today.subtract(Duration(days: _today.weekday % 7));
-        _selectedDate = _today; 
+        _selectedDate = _today;
         final int targetWeekPage = _calculateWeekPageIndex(_focusedWeekStart);
 
         if (_weekPageController.hasClients) _weekPageController.dispose();
         _weekPageController = PageController(initialPage: targetWeekPage);
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && _weekPageController.hasClients && _weekPageController.page?.round() != targetWeekPage) {            _weekPageController.jumpToPage(targetWeekPage);
+          if (mounted &&
+              _weekPageController.hasClients &&
+              _weekPageController.page?.round() != targetWeekPage) {
+            _weekPageController.jumpToPage(targetWeekPage);
           }
         });
 
         _fetchAiDaySummary(_selectedDate!);
       } else {
         _focusedMonth = DateTime(_today.year, _today.month);
-        _selectedDate = _today; 
+        _selectedDate = _today;
         final int targetMonthPage = _calculateMonthPageIndex(_focusedMonth);
 
         if (_monthPageController.hasClients) _monthPageController.dispose();
         _monthPageController = PageController(initialPage: targetMonthPage);
-        
+
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && _monthPageController.hasClients && _monthPageController.page?.round() != targetMonthPage) {
+          if (mounted &&
+              _monthPageController.hasClients &&
+              _monthPageController.page?.round() != targetMonthPage) {
             _monthPageController.jumpToPage(targetMonthPage);
           }
         });
-        
-        _fetchAiDaySummary(_selectedDate!); 
+
+        _fetchAiDaySummary(_selectedDate!);
       }
     });
   }
 
   void _addEvent(DateTime initialDate) async {
-    final bool? eventWasAdded = await Navigator.of(context).push<bool>(
+    // Expect AddEventPage to return the created Event object or null
+    final Event? newEvent = await Navigator.of(context).push<Event>(
       MaterialPageRoute(builder: (context) => AddEventPage(date: initialDate)),
     );
 
-    if (eventWasAdded == true && mounted) {
+    if (newEvent != null && newEvent.id != null && mounted) {
+      // Check if newEvent and its ID are valid
       await _loadEventsFromDb();
+
+      // --- Schedule Notification ---
+      await scheduleEventNotification(newEvent);
+      // ---
+
       final DateTime eventDayOnly = DateTime(
-        initialDate.year,
-        initialDate.month,
-        initialDate.day,
+        newEvent.date.year, // Use date from the newEvent for accuracy
+        newEvent.date.month,
+        newEvent.date.day,
       );
       if (_selectedDate != null &&
           _selectedDate!.year == eventDayOnly.year &&
@@ -749,16 +791,30 @@ class _CalendarScreenState extends State<CalendarScreen> {
           onEventChanged: (Event? updatedEvent) async {
             if (mounted) {
               await _loadEventsFromDb();
+
+              // --- Cancel Old and Schedule New Notification ---
+              if (event.id != null) {
+                await cancelEventNotification(event.id!);
+              }
+              if (updatedEvent != null && updatedEvent.id != null) {
+                await scheduleEventNotification(updatedEvent);
+              }
+              // ---
+
               final DateTime dateToRefresh = updatedEvent?.date ?? event.date;
-              final DateTime dayToRefreshSummary = DateTime(dateToRefresh.year, dateToRefresh.month, dateToRefresh.day);
+              final DateTime dayToRefreshSummary = DateTime(
+                dateToRefresh.year,
+                dateToRefresh.month,
+                dateToRefresh.day,
+              );
               _fetchAiDaySummary(dayToRefreshSummary);
 
               if (_selectedDate != null &&
                   _selectedDate!.year == dayToRefreshSummary.year &&
                   _selectedDate!.month == dayToRefreshSummary.month &&
                   _selectedDate!.day == dayToRefreshSummary.day &&
-                  _selectedDate != dayToRefreshSummary) { // Check if it's not the exact same day object already handled
-                    _fetchAiDaySummary(_selectedDate!); // Fetch for the main calendar's selected day if it matches
+                  _selectedDate != dayToRefreshSummary) {
+                _fetchAiDaySummary(_selectedDate!);
               }
             }
           },
@@ -782,6 +838,74 @@ class _CalendarScreenState extends State<CalendarScreen> {
       appBar: AppBar(
         title: Text(_isWeekView ? weekViewAppBarTitle : monthViewAppBarTitle),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications),
+            onPressed: () => showTestNotification(),
+            tooltip: 'Test Notification',
+          ),
+          IconButton(
+            icon: const Icon(Icons.info),
+            onPressed: () async {
+              final pending = await getPendingNotificationsWithDetails();
+              if (pending.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('No pending notifications')),
+                );
+              } else {
+                // Show detailed dialog
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text('Pending Notifications (${pending.length})'),
+                    content: SizedBox(
+                      width: double.maxFinite,
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: pending.length,
+                        itemBuilder: (context, index) {
+                          final notification = pending[index];
+                          return ListTile(
+                            title: Text(notification['title'] ?? 'Unknown'),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(notification['body'] ?? ''),
+                                Text(
+                                  'Event: ${notification['eventTime']}',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                Text(
+                                  'Time left: ${notification['timeLeft']}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('Close'),
+                      ),
+                    ],
+                  ),
+                );
+              }
+            },
+            onLongPress: () async {
+              await cancelAllNotifications();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('All notifications cancelled')),
+              );
+            },
+            tooltip: 'Check Pending Notifications (Long press to cancel all)',
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _resetDatabase,
@@ -914,8 +1038,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             _focusedWeekStart = _getDateFromWeekPageIndex(
                               pageIndex,
                             );
-                            // When week changes, select the first day of that week by default
-                            _selectedDate = _focusedWeekStart; 
+                            _selectedDate = _focusedWeekStart;
                             _fetchAiDaySummary(_selectedDate!);
                           });
                         }
@@ -930,8 +1053,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           minHour: _minHour,
                           maxHour: _maxHour,
                           timeLabelWidth: _timeLabelWidth,
-                          onShowDayEvents: _showDayEventsTimeSlotsPage, // Retained if other uses exist
-                          onEventTapped: _navigateToEventDetails, // New: for event tap
+                          onShowDayEvents: _showDayEventsTimeSlotsPage,
+                          onEventTapped: _navigateToEventDetails,
                           onGoToPreviousWeek: _goToPreviousWeek,
                           onGoToNextWeek: _goToNextWeek,
                         );

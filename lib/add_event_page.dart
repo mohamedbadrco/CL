@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart'; // Added for file picking
 import './database_helper.dart'; // Event class is in database_helper.dart
+import './notification_service.dart'; // Added import for notification service
 import 'dart:io'; // Potentially for File, though PlatformFile is often used
 
 class AddEventPage extends StatefulWidget {
@@ -193,7 +194,6 @@ class _AddEventPageState extends State<AddEventPage> {
       );
 
       for (final existingEvent in eventsOnSelectedDate) {
-        // If editing, skip checking against the event itself
         if (_isEditing && existingEvent.id == widget.eventToEdit!.id) {
           continue;
         }
@@ -201,7 +201,6 @@ class _AddEventPageState extends State<AddEventPage> {
         final existingEventStartDateTime = existingEvent.startTimeAsDateTime;
         final existingEventEndDateTime = existingEvent.endTimeAsDateTime;
 
-        // Check for overlap
         if (newEventStartDateTime.isBefore(existingEventEndDateTime) &&
             newEventEndDateTime.isAfter(existingEventStartDateTime)) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -212,11 +211,11 @@ class _AddEventPageState extends State<AddEventPage> {
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
-          return; // Stop saving
+          return; 
         }
       }
 
-      final eventData = Event(
+      final Event eventToSaveInDb = Event(
         id: _isEditing ? widget.eventToEdit!.id : null,
         title: _title,
         date: _selectedDate,
@@ -228,13 +227,14 @@ class _AddEventPageState extends State<AddEventPage> {
         description: _notes,
       );
 
-      int eventId;
+      int eventIdFromDb;
+      Event eventForNotificationAndReturn;
 
       if (_isEditing) {
-        eventId = widget.eventToEdit!.id!;
-        await dbHelper.updateEvent(eventData);
+        eventIdFromDb = widget.eventToEdit!.id!;
+        await dbHelper.updateEvent(eventToSaveInDb);
+        eventForNotificationAndReturn = eventToSaveInDb;
 
-        // Handle deleted attachments
         final removedDBAttachments = _initialAttachments
             .where(
               (initial) => !_existingAttachments.any(
@@ -247,21 +247,29 @@ class _AddEventPageState extends State<AddEventPage> {
             await dbHelper.deleteAttachment(attachment.id!);
           }
         }
-      } else {
-        eventId = await dbHelper.insertEvent(
-          eventData,
-        ); // insertEvent returns the new ID
+      } else { 
+        eventIdFromDb = await dbHelper.insertEvent(eventToSaveInDb);
+        eventForNotificationAndReturn = Event(
+          id: eventIdFromDb,
+          title: eventToSaveInDb.title,
+          date: eventToSaveInDb.date,
+          startTime: eventToSaveInDb.startTime,
+          endTime: eventToSaveInDb.endTime,
+          location: eventToSaveInDb.location,
+          description: eventToSaveInDb.description,
+        );
       }
 
-      // Save new attachments
       for (final file in _newlySelectedAttachments) {
         if (file.path != null) {
-          await dbHelper.insertAttachment(eventId, file.path!);
+          await dbHelper.insertAttachment(eventIdFromDb, file.path!);
         }
       }
 
+      await scheduleEventNotification(eventForNotificationAndReturn);
+
       if (mounted) {
-        Navigator.of(context).pop(_isEditing ? eventData : true);
+        Navigator.of(context).pop(eventForNotificationAndReturn);
       }
     }
   }
@@ -290,10 +298,8 @@ class _AddEventPageState extends State<AddEventPage> {
       ),
     );
 
-    // Combine existing and new attachments for display
     List<Widget> attachmentWidgets = [];
 
-    // Display existing attachments
     for (var attachment in _existingAttachments) {
       attachmentWidgets.add(
         ListTile(
@@ -301,7 +307,7 @@ class _AddEventPageState extends State<AddEventPage> {
           title: Text(
             attachment.filePath.split(Platform.pathSeparator).last,
             overflow: TextOverflow.ellipsis,
-          ), // Show filename
+          ), 
           trailing: IconButton(
             icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
             onPressed: () => _removeExistingAttachment(attachment),
@@ -309,13 +315,12 @@ class _AddEventPageState extends State<AddEventPage> {
         ),
       );
     }
-    // Display newly selected attachments
     for (var file in _newlySelectedAttachments) {
       attachmentWidgets.add(
         ListTile(
           leading: const Icon(
             Icons.attach_file_outlined,
-          ), // Slightly different icon for new
+          ), 
           title: Text(file.name, overflow: TextOverflow.ellipsis),
           trailing: IconButton(
             icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
@@ -521,7 +526,7 @@ class _AddEventPageState extends State<AddEventPage> {
                   ),
                 )
               else
-                ...attachmentWidgets, // Display the list of attachments
+                ...attachmentWidgets, 
             ],
           ),
         ),

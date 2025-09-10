@@ -1,7 +1,7 @@
 import 'dart:convert'; // For jsonEncode, if you decide to send JSON
 import 'dart:async'; // For Future.delayed
 // import 'dart:io' show Platform;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+// import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // You might need to add the http package to your pubspec.yaml:
 // dependencies:
