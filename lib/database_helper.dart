@@ -16,6 +16,7 @@ class Event {
   final String endTime; // Store as "HH:mm"
   final String location;
   final String description;
+  final bool scheduleAlarm; // New field
 
   Event({
     this.id,
@@ -25,6 +26,7 @@ class Event {
     required this.endTime,
     this.location = '',
     this.description = '',
+    this.scheduleAlarm = true, // Default to true
   });
 
   TimeOfDay get startTimeAsTimeOfDay {
@@ -64,6 +66,7 @@ class Event {
       'endTime': endTime,
       'location': location,
       'description': description,
+      DatabaseHelper.columnScheduleAlarm: scheduleAlarm ? 1 : 0, // Store bool as int
     };
   }
 
@@ -76,6 +79,7 @@ class Event {
       endTime: map['endTime'] as String,
       location: map['location'] as String? ?? '',
       description: map['description'] as String? ?? '',
+      scheduleAlarm: (map[DatabaseHelper.columnScheduleAlarm] as int? ?? 1) == 1, // Read int as bool, default to true if null
     );
   }
 }
@@ -134,19 +138,20 @@ class AiSummary {
 
 class DatabaseHelper {
   static const _databaseName = "CalendarApp.db";
-  static const _databaseVersion = 3; // Incremented version
+  static const _databaseVersion = 4; // Incremented version
 
   static const tableEvents = 'events';
   static const tableAttachments = 'attachments';
-  static const tableAiSummaries = 'ai_summaries'; // New table
+  static const tableAiSummaries = 'ai_summaries';
 
   static const columnId = 'id';
   static const columnTitle = 'title';
-  static const columnDate = 'date'; // Also used as primary key in ai_summaries
+  static const columnDate = 'date'; 
   static const columnStartTime = 'startTime';
   static const columnEndTime = 'endTime';
   static const columnLocation = 'location';
   static const columnDescription = 'description';
+  static const columnScheduleAlarm = 'scheduleAlarm'; // New column name
   static const columnEventId = 'eventId';
   static const columnFilePath = 'filePath';
 
@@ -185,7 +190,8 @@ class DatabaseHelper {
         $columnStartTime TEXT NOT NULL,
         $columnEndTime TEXT NOT NULL,
         $columnLocation TEXT,
-        $columnDescription TEXT
+        $columnDescription TEXT,
+        $columnScheduleAlarm INTEGER NOT NULL DEFAULT 1 
       )
       ''');
     await db.execute('''
@@ -196,7 +202,6 @@ class DatabaseHelper {
         FOREIGN KEY ($columnEventId) REFERENCES $tableEvents($columnId) ON DELETE CASCADE
       )
       ''');
-    // Create ai_summaries table
     await _createAiSummariesTable(db);
   }
 
@@ -213,6 +218,9 @@ class DatabaseHelper {
     }
     if (oldVersion < 3) {
       await _createAiSummariesTable(db);
+    }
+    if (oldVersion < 4) {
+      await db.execute('ALTER TABLE $tableEvents ADD COLUMN $columnScheduleAlarm INTEGER NOT NULL DEFAULT 1');
     }
   }
 

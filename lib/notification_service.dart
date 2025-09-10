@@ -106,6 +106,14 @@ Future<void> scheduleEventNotification(Event event) async {
     return;
   }
 
+  // Check the user's preference for this event
+  if (!event.scheduleAlarm) {
+    print('Alarm not scheduled for event "${event.title}" (ID: ${event.id}) as per user preference.');
+    // Ensure any existing alarm for this event is cancelled if the preference was changed.
+    await cancelEventNotification(event.id!); 
+    return;
+  }
+
   final DateTime eventStartTime = event.startTimeAsDateTime;
   final DateTime alarmTime = eventStartTime.subtract(
     const Duration(minutes: 10),
@@ -175,17 +183,6 @@ Future<void> cancelAllNotifications() async {
     print('Error cancelling all alarms using alarm package: $e');
   }
 }
-
-// // Test Notification function - REMOVED
-// Future<void> showTestNotification() async {
-//   await flutterLocalNotificationsPlugin.show(
-//     0, // ID for test notification
-//     'Test Flutter Local Notification',
-//     'This is a test of flutter_local_notifications plugin.',
-//     notificationDetails, // Uses the FLN details defined at the top
-//   );
-//   print('Test flutter_local_notification shown');
-// }
 
 // // Pending Notifications function - COMMENTED OUT as it is for flutter_local_notifications
 // // and not relevant for alarms from the 'alarm' package.

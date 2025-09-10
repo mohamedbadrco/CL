@@ -25,6 +25,7 @@ class _AddEventPageState extends State<AddEventPage> {
   );
   String _location = '';
   String _notes = '';
+  bool _scheduleAlarm = true; // State variable for alarm toggle
 
   // Attachments state
   List<PlatformFile> _newlySelectedAttachments = [];
@@ -47,6 +48,7 @@ class _AddEventPageState extends State<AddEventPage> {
       _endTime = event.endTimeAsTimeOfDay;
       _location = event.location;
       _notes = event.description;
+      _scheduleAlarm = event.scheduleAlarm; // Initialize from existing event
       _loadExistingAttachments(event.id!);
     } else {
       // Default time setup for new event
@@ -225,6 +227,7 @@ class _AddEventPageState extends State<AddEventPage> {
             '${_endTime.hour.toString().padLeft(2, '0')}:${_endTime.minute.toString().padLeft(2, '0')}',
         location: _location,
         description: _notes,
+        scheduleAlarm: _scheduleAlarm, // Pass the toggle value
       );
 
       int eventIdFromDb;
@@ -233,7 +236,7 @@ class _AddEventPageState extends State<AddEventPage> {
       if (_isEditing) {
         eventIdFromDb = widget.eventToEdit!.id!;
         await dbHelper.updateEvent(eventToSaveInDb);
-        eventForNotificationAndReturn = eventToSaveInDb;
+        eventForNotificationAndReturn = eventToSaveInDb; // This now includes scheduleAlarm
 
         final removedDBAttachments = _initialAttachments
             .where(
@@ -249,6 +252,7 @@ class _AddEventPageState extends State<AddEventPage> {
         }
       } else { 
         eventIdFromDb = await dbHelper.insertEvent(eventToSaveInDb);
+        // Ensure the eventForNotificationAndReturn has the correct scheduleAlarm value
         eventForNotificationAndReturn = Event(
           id: eventIdFromDb,
           title: eventToSaveInDb.title,
@@ -257,6 +261,7 @@ class _AddEventPageState extends State<AddEventPage> {
           endTime: eventToSaveInDb.endTime,
           location: eventToSaveInDb.location,
           description: eventToSaveInDb.description,
+          scheduleAlarm: eventToSaveInDb.scheduleAlarm, // Carry over the value
         );
       }
 
@@ -265,7 +270,7 @@ class _AddEventPageState extends State<AddEventPage> {
           await dbHelper.insertAttachment(eventIdFromDb, file.path!);
         }
       }
-
+      // scheduleEventNotification will now check eventForNotificationAndReturn.scheduleAlarm
       await scheduleEventNotification(eventForNotificationAndReturn);
 
       if (mounted) {
@@ -449,6 +454,25 @@ class _AddEventPageState extends State<AddEventPage> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 16), // Added for spacing before SwitchListTile
+              SwitchListTile(
+                title: Text(
+                  'Remind me for this event',
+                  style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 16),
+                ),
+                value: _scheduleAlarm,
+                onChanged: (bool value) {
+                  setState(() {
+                    _scheduleAlarm = value;
+                  });
+                },
+                activeColor: theme.colorScheme.primary,
+                tileColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+                secondary: Icon(Icons.alarm, color: theme.colorScheme.onBackground),
               ),
               const SizedBox(height: 20),
               Divider(color: theme.dividerColor.withOpacity(0.5)),
