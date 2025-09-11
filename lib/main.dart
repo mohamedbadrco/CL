@@ -1105,6 +1105,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
         tooltip: 'Add Event',
         child: Icon(Icons.add, color: theme.colorScheme.onPrimary),
         backgroundColor: theme.colorScheme.outlineVariant,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(
+            25.0,
+          ), // Adjust the radius as needed
+        ),
       ),
     );
   }
