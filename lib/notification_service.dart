@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import './database_helper.dart'; // For Event class
 import 'package:alarm/alarm.dart'; // Import for the new alarm package
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart'; // Import permission_handler
 
 // Initialize the flutter_local_notifications plugin (can still be used for other types of notifications, if any)
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -44,14 +45,63 @@ const NotificationDetails notificationDetails = NotificationDetails(
 Future<void> initializeNotifications() async {
   tz.initializeTimeZones();
 
+  // Request Notification Permission (Android 13+)
+  if (Platform.isAndroid) {
+    var status = await Permission.notification.status;
+    if (status.isDenied) {
+      status = await Permission.notification.request();
+    }
+    if (status.isPermanentlyDenied) {
+      // Consider guiding the user to app settings
+      print("Notification permission permanently denied. Please enable it in settings.");
+      // openAppSettings(); // This function from permission_handler can open app settings
+    }
+    if (!status.isGranted) {
+        print("Notification permission was not granted.");
+        // App can continue, but notifications from flutter_local_notifications
+        // and potentially from the alarm package might not show.
+    } else {
+        print("Notification permission granted.");
+    }
+
+    // Request Schedule Exact Alarm Permission (Android 12+)
+    // The `alarm` package might handle this internally if using a newer version,
+    // or you might need to check if it can schedule exact alarms via native checks
+    // if `Permission.scheduleExactAlarm.request()` isn't sufficient or causes issues.
+    // For API 34+, user needs to grant this from settings manually if not a calendar/alarm clock app.
+    // The `alarm` package itself might also have utilities or recommendations for this.
+    if (await Permission.scheduleExactAlarm.isDenied) {
+        var exactAlarmStatus = await Permission.scheduleExactAlarm.request();
+        if (exactAlarmStatus.isPermanentlyDenied) {
+            print("Schedule exact alarm permission permanently denied. Please enable it in settings.");
+            // openAppSettings();
+        }
+        if (!exactAlarmStatus.isGranted) {
+            print("Schedule exact alarm permission was not granted. Alarms may not be precise.");
+        } else {
+            print("Schedule exact alarm permission granted.");
+        }
+    } else if (await Permission.scheduleExactAlarm.isGranted) {
+        print("Schedule exact alarm permission already granted.");
+    } else {
+        print("Schedule exact alarm permission status: ${await Permission.scheduleExactAlarm.status}");
+        // On Android 14+ (API 34+), this permission often needs to be enabled manually by the user
+        // in system settings if the app is not of type "alarm or calendar".
+        // You might need to check AlarmManager.canScheduleExactAlarms() via platform channel
+        // and guide the user to settings.
+        // For simplicity here, we just log. The `alarm` package might have its own handling.
+    }
+  }
+
+
   // Initialize flutter_local_notifications (if still needed for other purposes)
   const AndroidInitializationSettings initializationSettingsAndroid =
       AndroidInitializationSettings('@mipmap/ic_launcher');
   const DarwinInitializationSettings initializationSettingsDarwin =
       DarwinInitializationSettings(
-        requestAlertPermission: true,
-        requestBadgePermission: true,
-        requestSoundPermission: true,
+        // requestAlertPermission: true, // permission_handler is now preferred for notifications
+        // requestBadgePermission: true,
+        // requestSoundPermission: true,
       );
   final InitializationSettings initializationSettings = InitializationSettings(
     android: initializationSettingsAndroid,
@@ -74,6 +124,7 @@ Future<void> initializeNotifications() async {
 
   // Initialize the Alarm package
   try {
+    // It's good practice to ensure permissions are handled *before* initializing a package that depends on them.
     await Alarm.init(); 
     print('Alarm package initialized successfully.');
   } catch (e) {
@@ -114,6 +165,20 @@ Future<void> scheduleEventNotification(Event event) async {
     return;
   }
 
+  // Permission checks before scheduling (optional, as init should handle it, but good for robustness)
+  if (Platform.isAndroid) {
+    if (!await Permission.notification.isGranted) {
+      print("Cannot schedule event notification: Notification permission not granted.");
+      // Optionally, trigger request again or inform user
+      // await Permission.notification.request(); 
+      return;
+    }
+    // For SCHEDULE_EXACT_ALARM, it's more complex. 
+    // The `alarm` package might have its own checks or rely on the initial grant.
+    // If Alarm.set() fails, it could be due to this permission.
+  }
+
+
   final DateTime eventStartTime = event.startTimeAsDateTime;
   final DateTime alarmTime = eventStartTime.subtract(
     const Duration(minutes: 10),
@@ -148,7 +213,7 @@ Future<void> scheduleEventNotification(Event event) async {
         title: 'Upcoming Event: ${event.title}',
         body: 'Starts at ${DateFormat.jm().format(eventStartTime)}',
         stopButton: 'Stop the alarm',
-        icon: 'notification_icon',
+        icon: 'notification_icon', // Ensure this drawable exists in android/app/src/main/res/drawable
         iconColor: Color(0xff862778),
       ),
     );
