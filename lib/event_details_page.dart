@@ -2,11 +2,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart'; // Import url_launcher
 import './database_helper.dart'; // Event class is in database_helper.dart
 import './add_event_page.dart'; // Import AddEventPage
 import './notification_service.dart'; // Import for cancelEventNotification
 import 'dart:io'; // For basename
 import 'package:open_filex/open_filex.dart'; // Import for opening files
+import './api/gemini_service.dart'; // Import GeminiService
 
 class EventDetailsPage extends StatefulWidget {
   final Event event;
@@ -21,6 +23,9 @@ class EventDetailsPage extends StatefulWidget {
 class _EventDetailsPageState extends State<EventDetailsPage> {
   late Event _currentEvent;
   List<EventAttachment> _attachments = [];
+  final GeminiService _geminiService = GeminiService(); // Instance of GeminiService
+  bool _isFetchingGeoUrl = false;
+  String? _fetchedGeoUrl;
 
   @override
   void initState() {
@@ -46,16 +51,15 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     if (_currentEvent.id != null) {
       await DatabaseHelper.instance.deleteEvent(_currentEvent.id!);
       await cancelEventNotification(_currentEvent.id!);
-      widget.onEventChanged?.call(null); // Pass null to indicate deletion
+      widget.onEventChanged?.call(null); 
       if (mounted) {
-        Navigator.of(context).pop(); // Pop EventDetailsPage
+        Navigator.of(context).pop(); 
       }
     }
   }
 
   Future<void> _editEvent(BuildContext context) async {
     if (!mounted) return;
-    // AddEventPage will pop with the updated Event object
     final updatedEvent = await Navigator.of(context).push<Event>(
       MaterialPageRoute(
         builder: (context) =>
@@ -64,15 +68,13 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     );
 
     if (updatedEvent != null && mounted) {
-      // If AddEventPage returned an event (i.e., was saved)
-      widget.onEventChanged?.call(
-        updatedEvent,
-      ); // Notify listener to refresh data in the background
+      widget.onEventChanged?.call(updatedEvent);
       setState(() {
-        _currentEvent =
-            updatedEvent; // Update the UI of this page with new event details
+        _currentEvent = updatedEvent;
+        _fetchedGeoUrl = null; // Reset fetched URL if event is edited
+        _isFetchingGeoUrl = false;
       });
-      await _loadAttachments(); // Refresh attachments list
+      await _loadAttachments();
     }
   }
 
@@ -88,9 +90,72 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error opening file: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error opening file: $e')));
+      }
+    }
+  }
+
+  bool _isValidUrl(String url) {
+    try {
+      final uri = Uri.parse(url);
+      return uri.isAbsolute && (uri.scheme == 'http' || uri.scheme == 'https');
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<void> _launchUrl(String urlString) async {
+    final Uri url = Uri.parse(urlString);
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not launch $urlString')),
+        );
+      }
+    }
+  }
+
+  Future<void> _fetchGeoUrlForLocation(String locationName) async {
+    if (locationName.trim().isEmpty) return;
+    setState(() {
+      _isFetchingGeoUrl = true;
+      _fetchedGeoUrl = null;
+    });
+    try {
+      // This is where you would call your GeminiService method
+      // String? url = await _geminiService.getMapsUrlForPlaceName(locationName);
+      // For now, we'll simulate a delay and a response for UI testing:
+      await Future.delayed(const Duration(seconds: 2)); 
+      String? url = "https://maps.google.com/?q=${Uri.encodeComponent(locationName)}"; // Simulated basic link
+      // To simulate a failure or no link found:
+      // String? url = null; 
+      // String? url = "not_a_valid_link";
+
+      if (url != null && _isValidUrl(url)) {
+        setState(() {
+          _fetchedGeoUrl = url;
+        });
+      } else {
+         if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not find a valid Maps URL for this location.')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching location URL: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isFetchingGeoUrl = false;
+        });
       }
     }
   }
@@ -141,10 +206,8 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                           ),
                         ),
                         onPressed: () {
-                          Navigator.of(dialogContext).pop(); // Close dialog
-                          _deleteEvent(
-                            context,
-                          ); // Will call onEventChanged and pop EventDetailsPage
+                          Navigator.of(dialogContext).pop();
+                          _deleteEvent(context);
                         },
                       ),
                     ],
@@ -207,11 +270,36 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
             if (_currentEvent.location.isNotEmpty) ...[
               const SizedBox(height: 16),
               _buildDetailItem(
-                context,
-                icon: Icons.location_on_outlined,
-                label: 'Location',
-                value: _currentEvent.location,
-              ),
+                  context,
+                  icon: Icons.location_on_outlined,
+                  label: 'Location',
+                  value: _currentEvent.location,
+                  isLocationField: true // Indicate this is the location field
+                  ),
+            ],
+            if (_fetchedGeoUrl != null) ...[
+              const SizedBox(height: 8),
+               Padding(
+                 padding: const EdgeInsets.only(left: 28.0), // Align with other values
+                 child: Column(
+                   crossAxisAlignment: CrossAxisAlignment.start,
+                   children: [
+                     Text("Suggested Map Link:", style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold)),
+                     const SizedBox(height: 4),
+                     InkWell(
+                       onTap: () => _launchUrl(_fetchedGeoUrl!),
+                       child: Text(
+                         _fetchedGeoUrl!,
+                         style: theme.textTheme.bodyLarge?.copyWith(
+                           color: Colors.blue,
+                           decoration: TextDecoration.underline,
+                           decorationColor: Colors.blue,
+                         ),
+                       ),
+                     ),
+                   ],
+                 ),
+               ),
             ],
             if (_currentEvent.description.isNotEmpty) ...[
               const SizedBox(height: 16),
@@ -224,9 +312,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
               ),
             ],
             if (_attachments.isNotEmpty) ...[
-              const SizedBox(
-                height: 24,
-              ), // Increased spacing before attachments section
+              const SizedBox(height: 24),
               Text(
                 'Attachments',
                 style: theme.textTheme.titleLarge?.copyWith(
@@ -237,9 +323,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: _attachments.map((attachment) {
-                  String fileName = attachment.filePath
-                      .split(Platform.pathSeparator)
-                      .last;
+                  String fileName = attachment.filePath.split(Platform.pathSeparator).last;
                   return InkWell(
                     onTap: () => _openAttachmentFile(attachment.filePath),
                     child: Padding(
@@ -278,8 +362,47 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     required String label,
     required String value,
     bool isMultiline = false,
+    bool isLocationField = false, // New parameter
   }) {
     final theme = Theme.of(context);
+    final bool isActualUrl = _isValidUrl(value);
+
+    Widget valueWidget;
+    if (isLocationField && isActualUrl) {
+      valueWidget = InkWell(
+        onTap: () => _launchUrl(value),
+        child: Text(
+          value,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: Colors.blue, 
+            decoration: TextDecoration.underline,
+            decorationColor: Colors.blue,
+          ),
+        ),
+      );
+    } else if (isLocationField && !isActualUrl) {
+      valueWidget = Row(
+        children: [
+          Expanded(child: Text(value, style: theme.textTheme.bodyLarge)),
+          if (_isFetchingGeoUrl) 
+            const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2.0))
+          else
+            IconButton(
+              icon: const Icon(Icons.travel_explore_outlined, size: 22),
+              tooltip: 'Find on map',
+              onPressed: () => _fetchGeoUrlForLocation(value),
+            ),
+        ],
+      );
+    } else {
+      valueWidget = Text(
+        value,
+        style: isMultiline
+            ? theme.textTheme.bodyLarge?.copyWith(height: 1.4)
+            : theme.textTheme.bodyLarge,
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -298,15 +421,8 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
         ),
         const SizedBox(height: 4),
         Padding(
-          padding: const EdgeInsets.only(
-            left: 28.0,
-          ), // Align with text after icon
-          child: Text(
-            value,
-            style: isMultiline
-                ? theme.textTheme.bodyLarge?.copyWith(height: 1.4)
-                : theme.textTheme.bodyLarge,
-          ),
+          padding: const EdgeInsets.only(left: 28.0),
+          child: valueWidget,
         ),
       ],
     );
