@@ -8,7 +8,7 @@ import './api/gemini_service.dart';
 import './month_page.dart'; // Import MonthPageContent
 import './week_page.dart'; // Import WeekPageContent
 import './notification_service.dart'; // Import NotificationService
-// import 'package:flutter_dotenv/flutter_dotenv.dart'; // Commented out, ensure it's handled if needed
+// import \'package:flutter_dotenv/flutter_dotenv.dart\'; // Commented out, ensure it\'s handled if needed
 
 // Updated main function:
 void main() async {
@@ -246,7 +246,7 @@ class _DayEventsScreenState extends State<DayEventsScreen> {
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(DateFormat.yMMMd().format(widget.date)),
+        title: Text(DateFormat('MMM d, yy').format(widget.date)),
       ),
       body: DayScheduleView(
         date: widget.date,
@@ -479,6 +479,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   void initState() {
     super.initState();
+    // Initialize _today accurately at the start
+    final now = DateTime.now();
+    _today = DateTime(now.year, now.month, now.day);
+
     _selectedDate = _today;
     _focusedWeekStart = _today.subtract(Duration(days: _today.weekday % 7));
     _focusedMonth = DateTime(_today.year, _today.month);
@@ -622,7 +626,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   int _calculateMonthPageIndex(DateTime month) {
-    final referenceMonth = DateTime(_today.year, _today.month);
+    final referenceMonth = DateTime(
+      _today.year,
+      _today.month,
+    ); // Use consistent _today
     return _initialPageIndex +
         (month.year - referenceMonth.year) * 12 +
         (month.month - referenceMonth.month);
@@ -630,14 +637,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   DateTime _getDateFromMonthPageIndex(int pageIndex) {
     final monthOffset = pageIndex - _initialPageIndex;
-    final referenceMonth = DateTime(_today.year, _today.month);
+    final referenceMonth = DateTime(
+      _today.year,
+      _today.month,
+    ); // Use consistent _today
     return DateTime(referenceMonth.year, referenceMonth.month + monthOffset, 1);
   }
 
   int _calculateWeekPageIndex(DateTime weekStart) {
     DateTime todayWeekStart = _today.subtract(
       Duration(days: _today.weekday % 7),
-    );
+    ); // Use consistent _today
     return _initialPageIndex +
         (weekStart.difference(todayWeekStart).inDays ~/ 7);
   }
@@ -646,8 +656,38 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final weekOffset = pageIndex - _initialPageIndex;
     DateTime todayWeekStart = _today.subtract(
       Duration(days: _today.weekday % 7),
-    );
+    ); // Use consistent _today
     return todayWeekStart.add(Duration(days: weekOffset * 7));
+  }
+
+  void _goToToday() {
+    if (!mounted) return;
+    final DateTime now = DateTime.now();
+    final DateTime todayDate = DateTime(now.year, now.month, now.day);
+
+    setState(() {
+      _today = todayDate; // Update _today to actual current day
+      _selectedDate = todayDate; // Select today
+
+      if (_isWeekView) {
+        _focusedWeekStart = todayDate.subtract(
+          Duration(days: todayDate.weekday % 7),
+        );
+        final int targetWeekPage = _calculateWeekPageIndex(_focusedWeekStart);
+        if (_weekPageController.hasClients &&
+            _weekPageController.page?.round() != targetWeekPage) {
+          _weekPageController.jumpToPage(targetWeekPage);
+        }
+      } else {
+        _focusedMonth = DateTime(todayDate.year, todayDate.month);
+        final int targetMonthPage = _calculateMonthPageIndex(_focusedMonth);
+        if (_monthPageController.hasClients &&
+            _monthPageController.page?.round() != targetMonthPage) {
+          _monthPageController.jumpToPage(targetMonthPage);
+        }
+      }
+    });
+    _fetchAiDaySummary(todayDate);
   }
 
   void _goToPreviousMonth() {
@@ -693,8 +733,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
       _isWeekView = !_isWeekView;
 
       if (_isWeekView) {
-        _focusedWeekStart = _today.subtract(Duration(days: _today.weekday % 7));
-        _selectedDate = _today;
+        _focusedWeekStart = _selectedDate != null
+            ? _selectedDate!.subtract(
+                Duration(days: _selectedDate!.weekday % 7),
+              )
+            : _today.subtract(Duration(days: _today.weekday % 7));
+
         final int targetWeekPage = _calculateWeekPageIndex(_focusedWeekStart);
 
         if (_weekPageController.hasClients) _weekPageController.dispose();
@@ -707,11 +751,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
             _weekPageController.jumpToPage(targetWeekPage);
           }
         });
-
-        _fetchAiDaySummary(_selectedDate!);
+        if (_selectedDate != null) _fetchAiDaySummary(_selectedDate!);
       } else {
-        _focusedMonth = DateTime(_today.year, _today.month);
-        _selectedDate = _today;
+        _focusedMonth = DateTime(
+          _selectedDate?.year ?? _today.year,
+          _selectedDate?.month ?? _today.month,
+        );
         final int targetMonthPage = _calculateMonthPageIndex(_focusedMonth);
 
         if (_monthPageController.hasClients) _monthPageController.dispose();
@@ -724,28 +769,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
             _monthPageController.jumpToPage(targetMonthPage);
           }
         });
-
-        _fetchAiDaySummary(_selectedDate!);
+        if (_selectedDate != null) _fetchAiDaySummary(_selectedDate!);
       }
     });
   }
 
   void _addEvent(DateTime initialDate) async {
-    // Expect AddEventPage to return the created Event object or null
     final Event? newEvent = await Navigator.of(context).push<Event>(
       MaterialPageRoute(builder: (context) => AddEventPage(date: initialDate)),
     );
 
     if (newEvent != null && newEvent.id != null && mounted) {
-      // Check if newEvent and its ID are valid
       await _loadEventsFromDb();
-
-      // --- Schedule Notification ---
       await scheduleEventNotification(newEvent);
-      // ---
 
       final DateTime eventDayOnly = DateTime(
-        newEvent.date.year, // Use date from the newEvent for accuracy
+        newEvent.date.year,
         newEvent.date.month,
         newEvent.date.day,
       );
@@ -792,14 +831,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
             if (mounted) {
               await _loadEventsFromDb();
 
-              // --- Cancel Old and Schedule New Notification ---
               if (event.id != null) {
                 await cancelEventNotification(event.id!);
               }
               if (updatedEvent != null && updatedEvent.id != null) {
                 await scheduleEventNotification(updatedEvent);
               }
-              // ---
 
               final DateTime dateToRefresh = updatedEvent?.date ?? event.date;
               final DateTime dayToRefreshSummary = DateTime(
@@ -827,16 +864,57 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final weekDayNames = DateFormat.EEEE().dateSymbols.STANDALONENARROWWEEKDAYS;
-    final monthViewAppBarTitle = _focusedMonth != null
-        ? DateFormat.yMMMM().format(_focusedMonth)
-        : "Calendar";
-    final weekViewAppBarTitle = _focusedWeekStart != null
-        ? "Week of ${DateFormat.MMMd().format(_focusedWeekStart)}"
-        : "Calendar";
+
+    final String appBarTitleText;
+    final DateTime referenceDateForTitle = _isWeekView
+        ? (_focusedWeekStart ?? _today)
+        : (_focusedMonth ?? _today);
+
+    appBarTitleText = DateFormat("MMM yy").format(referenceDateForTitle);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isWeekView ? weekViewAppBarTitle : monthViewAppBarTitle),
+        leadingWidth: 60,
+        leading: Padding(
+          padding: const EdgeInsets.only(
+            left: 8.0,
+            top: 6.0,
+            bottom: 6.0,
+            right: 4.0,
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: theme.colorScheme.onSurface.withOpacity(0.5),
+                width: 1.5,
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: TextButton(
+              onPressed: _goToToday,
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                alignment: Alignment.center,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(7),
+                ),
+              ),
+              child: Text(
+                DateFormat('d').format(_today),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color:
+                      theme.appBarTheme.titleTextStyle?.color ??
+                      theme.colorScheme.onPrimary,
+                  fontSize:
+                      (theme.appBarTheme.titleTextStyle?.fontSize ?? 20) * 0.95,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ),
+        title: Text(appBarTitleText),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -867,69 +945,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ),
       body: Column(
         children: [
-          if (!_isWeekView && _focusedMonth != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  RichText(
-                    text: TextSpan(
-                      children: <TextSpan>[
-                        TextSpan(
-                          text: DateFormat.MMMM().format(_focusedMonth),
-                          style:
-                              (theme.textTheme.titleLarge ?? const TextStyle())
-                                  .copyWith(
-                                    fontSize:
-                                        (theme.textTheme.titleLarge?.fontSize ??
-                                            20.0) *
-                                        1.2,
-                                    color: theme.colorScheme.onPrimary,
-                                  ),
-                        ),
-                        TextSpan(
-                          text: ' ${DateFormat.y().format(_focusedMonth)}',
-                          style:
-                              (theme.textTheme.titleLarge ?? const TextStyle())
-                                  .copyWith(
-                                    fontSize:
-                                        (theme.textTheme.titleLarge?.fontSize ??
-                                            20.0) *
-                                        0.9,
-                                    color: theme.textTheme.titleLarge?.color,
-                                  ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: Icon(
-                          Icons.chevron_left,
-                          size: 28,
-                          color: theme.brightness == Brightness.dark
-                              ? theme.colorScheme.onBackground
-                              : theme.iconTheme.color,
-                        ),
-                        onPressed: _goToPreviousMonth,
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          Icons.chevron_right,
-                          size: 28,
-                          color: theme.brightness == Brightness.dark
-                              ? theme.colorScheme.onBackground
-                              : theme.iconTheme.color,
-                        ),
-                        onPressed: _goToNextMonth,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
           if (!_isWeekView)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -967,10 +982,34 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       onPageChanged: (pageIndex) {
                         if (mounted) {
                           setState(() {
-                            _focusedWeekStart = _getDateFromWeekPageIndex(
-                              pageIndex,
-                            );
-                            _selectedDate = _focusedWeekStart;
+                            final newFocusedWeekStart =
+                                _getDateFromWeekPageIndex(pageIndex);
+                            _focusedWeekStart = newFocusedWeekStart;
+
+                            DateTime newSelectedDateCandidate =
+                                _selectedDate ?? newFocusedWeekStart;
+                            if (newSelectedDateCandidate.isBefore(
+                                  newFocusedWeekStart,
+                                ) ||
+                                newSelectedDateCandidate.isAfter(
+                                  newFocusedWeekStart.add(
+                                    const Duration(days: 6),
+                                  ),
+                                )) {
+                              _selectedDate = newFocusedWeekStart;
+                            } else {
+                              _selectedDate = DateTime(
+                                newFocusedWeekStart.year,
+                                newFocusedWeekStart.month,
+                                newSelectedDateCandidate.day,
+                              );
+                              if (_selectedDate!.month !=
+                                      newFocusedWeekStart.month &&
+                                  newFocusedWeekStart.day >
+                                      _selectedDate!.day) {
+                                _selectedDate = newFocusedWeekStart;
+                              }
+                            }
                             _fetchAiDaySummary(_selectedDate!);
                           });
                         }
@@ -1001,32 +1040,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               pageIndex,
                             );
                             _focusedMonth = newFocusedMonth;
-                            bool summaryNeedsUpdate = false;
 
-                            if (_selectedDate == null ||
-                                _selectedDate!.month != _focusedMonth.month ||
-                                _selectedDate!.year != _focusedMonth.year) {
-                              DateTime candidateDate = DateTime(
+                            int dayToSelect = _selectedDate?.day ?? _today.day;
+                            DateTime candidateDate;
+                            try {
+                              candidateDate = DateTime(
                                 _focusedMonth.year,
                                 _focusedMonth.month,
-                                _selectedDate?.day ??
-                                    (_focusedMonth.month == _today.month &&
-                                            _focusedMonth.year == _today.year
-                                        ? _today.day
-                                        : 1),
+                                dayToSelect,
                               );
-                              if (candidateDate.month != _focusedMonth.month) {
-                                candidateDate = DateTime(
-                                  _focusedMonth.year,
-                                  _focusedMonth.month + 1,
-                                  0,
-                                );
-                              }
-                              _selectedDate = candidateDate;
-                              summaryNeedsUpdate = true;
+                            } catch (e) {
+                              candidateDate = DateTime(
+                                _focusedMonth.year,
+                                _focusedMonth.month + 1,
+                                0,
+                              );
                             }
 
-                            if (summaryNeedsUpdate && _selectedDate != null) {
+                            if (_selectedDate != candidateDate) {
+                              _selectedDate = candidateDate;
                               _fetchAiDaySummary(_selectedDate!);
                             } else if (_selectedDate == null) {
                               _aiDaySummary =
