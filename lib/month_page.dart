@@ -182,58 +182,75 @@ class MonthPageContent extends StatelessWidget {
           date.month == today.month &&
           date.day == today.day;
       final dayKey = DateTime(date.year, date.month, date.day);
-      final hasEvent =
-          events.containsKey(dayKey) && events[dayKey]!.isNotEmpty;
+      // final hasEvent = events.containsKey(dayKey) && events[dayKey]!.isNotEmpty; // No longer needed for dot
 
       dayWidgets.add(
         LayoutBuilder(
           builder: (context, constraints) {
             final boxSize = constraints.maxWidth;
+            
+            final int eventCount = events[dayKey]?.length ?? 0;
+            Color? cellBackgroundColor;
+            Widget effectiveDayNumberWidget;
 
-            BoxDecoration cellOverallDecoration = BoxDecoration(
+            TextStyle baseDayNumberTextStyle = theme.textTheme.bodySmall!.copyWith(
+                fontSize: boxSize * 0.4,
+            );
+            
+            Color dayTextColor = theme.colorScheme.onSurface;
+            FontWeight dayTextWeight = FontWeight.normal;
+
+            if (isSelected) {
+              effectiveDayNumberWidget = Container(
+                padding: EdgeInsets.all(boxSize * 0.1),
+                decoration: BoxDecoration(
+                  color: const Color.fromARGB(255, 30, 110, 244), // slected_blu
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  day.toString(),
+                  style: baseDayNumberTextStyle.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+              );
+            } else {
+              if (eventCount > 1) {
+                cellBackgroundColor = const Color.fromRGBO(0, 137, 50, 1); // level2_green
+                dayTextColor = Colors.white;
+                dayTextWeight = FontWeight.w800;
+              } else if (eventCount == 1) {
+                cellBackgroundColor = const Color.fromARGB(255, 74, 217, 104); // level1_green
+                dayTextColor = theme.colorScheme.primary; // Dark text for light green
+                dayTextWeight = FontWeight.w800;
+              } else if (isTodayDate) {
+                dayTextColor = const Color.fromRGBO(0, 137, 50, 1); // Today's distinct color
+                dayTextWeight = FontWeight.w800;
+              }
+
+              effectiveDayNumberWidget = Text(
+                day.toString(),
+                style: baseDayNumberTextStyle.copyWith(
+                  color: dayTextColor,
+                  fontWeight: dayTextWeight,
+                ),
+              );
+            }
+
+            BoxDecoration cellDecoration = BoxDecoration(
+              color: cellBackgroundColor,
               border: Border(
                 top: BorderSide(
                   color: theme.dividerColor.withOpacity(0.2),
                   width: 0.5,
                 ),
                 right: BorderSide(
-                  color: theme.dividerColor.withOpacity(0), 
+                  color: theme.dividerColor.withOpacity(0),
                   width: 0.5,
                 ),
               ),
             );
-
-            Widget dayNumberWidget;
-            TextStyle? dayNumberStyle;
-
-            if (isSelected) {
-              dayNumberStyle = theme.textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: theme.colorScheme.onPrimaryContainer,
-                fontSize: boxSize * 0.4,
-              );
-              dayNumberWidget = Container(
-                padding: EdgeInsets.all(boxSize * 0.1), // Padding for the circle around the text
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer,
-                  shape: BoxShape.circle,
-                ),
-                child: Text(day.toString(), style: dayNumberStyle),
-              );
-            } else if (isTodayDate) {
-              dayNumberStyle = theme.textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: const Color.fromRGBO(0, 137, 50, 1), // Today's distinct color
-                fontSize: boxSize * 0.4,
-              );
-              dayNumberWidget = Text(day.toString(), style: dayNumberStyle);
-            } else {
-              dayNumberStyle = theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface,
-                fontSize: boxSize * 0.4,
-              );
-              dayNumberWidget = Text(day.toString(), style: dayNumberStyle);
-            }
 
             return GestureDetector(
               onTap: () => onDateSelected(date),
@@ -241,22 +258,9 @@ class MonthPageContent extends StatelessWidget {
               child: Container(
                 width: boxSize,
                 height: boxSize,
-                decoration: cellOverallDecoration, // This decoration is for the cell borders
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    dayNumberWidget, // This is the (potentially decorated) day number
-                    if (hasEvent)
-                      Positioned(
-                        right: boxSize * 0.1,
-                        bottom: boxSize * 0.1,
-                        child: Icon(
-                          Icons.circle,
-                          size: boxSize * 0.15,
-                          color: theme.colorScheme.secondary.withOpacity(0.8),
-                        ),
-                      ),
-                  ],
+                decoration: cellDecoration,
+                child: Center(
+                  child: effectiveDayNumberWidget,
                 ),
               ),
             );
