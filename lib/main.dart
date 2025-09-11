@@ -280,6 +280,10 @@ class _CalendarAppState extends State<CalendarApp> {
 
   @override
   Widget build(BuildContext context) {
+    final slected_blu = const Color.fromARGB(255, 30, 110, 244);
+    final level1_green = const Color.fromARGB(255, 74, 217, 104);
+    final level2_green = const Color.fromRGBO(0, 137, 50, 1);
+
     final lightColorScheme = ColorScheme(
       onBackground: const Color(0xFF1c1c1e),
       onSurface: const Color(0xFF1c1c1e),
