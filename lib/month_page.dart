@@ -149,7 +149,7 @@ class MonthPageContent extends StatelessWidget {
                     width: 0.5,
                   ),
                   right: BorderSide(
-                    color: theme.dividerColor.withOpacity(0),
+                    color: theme.dividerColor.withOpacity(0), // No right border for visual grid
                     width: 0.5,
                   ),
                 ),
@@ -182,40 +182,30 @@ class MonthPageContent extends StatelessWidget {
           date.month == today.month &&
           date.day == today.day;
       final dayKey = DateTime(date.year, date.month, date.day);
-      // final hasEvent = events.containsKey(dayKey) && events[dayKey]!.isNotEmpty; // No longer needed for dot
+      final int eventCount = events[dayKey]?.length ?? 0;
 
       dayWidgets.add(
         LayoutBuilder(
           builder: (context, constraints) {
             final boxSize = constraints.maxWidth;
             
-            final int eventCount = events[dayKey]?.length ?? 0;
             Color? cellBackgroundColor;
-            Widget effectiveDayNumberWidget;
+            Color dayTextColor;
+            FontWeight dayTextWeight = FontWeight.normal;
+            bool makeTextCircular = false;
 
             TextStyle baseDayNumberTextStyle = theme.textTheme.bodySmall!.copyWith(
                 fontSize: boxSize * 0.4,
             );
-            
-            Color dayTextColor = theme.colorScheme.onSurface;
-            FontWeight dayTextWeight = FontWeight.normal;
 
             if (isSelected) {
-              effectiveDayNumberWidget = Container(
-                padding: EdgeInsets.all(boxSize * 0.1),
-                decoration: BoxDecoration(
-                  color: const Color.fromARGB(255, 30, 110, 244), // slected_blu
-                  shape: BoxShape.circle,
-                ),
-                child: Text(
-                  day.toString(),
-                  style: baseDayNumberTextStyle.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                  ),
-                ),
-              );
-            } else {
+              cellBackgroundColor = const Color.fromARGB(255, 30, 110, 244); // slected_blu
+              dayTextColor = Colors.white;
+              dayTextWeight = FontWeight.w800;
+              // If you want the blue selected cell to still have a circular highlight for the number:
+              // makeTextCircular = true; 
+              // However, the request was about consistent *background color* for the cell.
+            } else { // Not selected
               if (eventCount > 1) {
                 cellBackgroundColor = const Color.fromRGBO(0, 137, 50, 1); // level2_green
                 dayTextColor = Colors.white;
@@ -225,28 +215,58 @@ class MonthPageContent extends StatelessWidget {
                 dayTextColor = theme.colorScheme.primary; // Dark text for light green
                 dayTextWeight = FontWeight.w800;
               } else if (isTodayDate) {
-                dayTextColor = const Color.fromRGBO(0, 137, 50, 1); // Today's distinct color
+                dayTextColor = const Color.fromRGBO(0, 137, 50, 1); // Today's distinct color for text
                 dayTextWeight = FontWeight.w800;
+                // Optionally, make today's number circular if no events and not selected
+                // makeTextCircular = true; 
+              } else {
+                dayTextColor = theme.colorScheme.onSurface; // Default text color
               }
-
-              effectiveDayNumberWidget = Text(
-                day.toString(),
-                style: baseDayNumberTextStyle.copyWith(
-                  color: dayTextColor,
-                  fontWeight: dayTextWeight,
-                ),
-              );
             }
 
+            Widget dayContent = Text(
+              day.toString(),
+              style: baseDayNumberTextStyle.copyWith(
+                color: dayTextColor,
+                fontWeight: dayTextWeight,
+              ),
+            );
+
+            if (makeTextCircular) { // Apply if decided to keep number in a circle for selected/today
+                 dayContent = Container(
+                    padding: EdgeInsets.all(boxSize * 0.08), // Smaller padding for text in circle
+                    decoration: BoxDecoration(
+                    color: isSelected ? const Color.fromARGB(255, 30, 110, 244) : (isTodayDate && !isSelected && eventCount == 0 ? Colors.transparent : null), // Blue for selected, or other for today if specified
+                    shape: BoxShape.circle,
+                    border: isTodayDate && !isSelected && eventCount == 0 ? Border.all(color: const Color.fromRGBO(0, 137, 50, 1), width: 1.5) : null, // Border for today circle
+                    ),
+                    child: Text(
+                        day.toString(),
+                        style: baseDayNumberTextStyle.copyWith(
+                            color: (isSelected) ? Colors.white : (isTodayDate && !isSelected && eventCount == 0 ? const Color.fromRGBO(0, 137, 50, 1) : dayTextColor),
+                            fontWeight: (isSelected || (isTodayDate && !isSelected && eventCount == 0)) ? FontWeight.w800 : dayTextWeight,
+                        ),
+                    ),
+                );
+                // If making text circular, the cellBackgroundColor for selected might need to be null/transparent
+                // if the circle itself provides the blue. This part needs careful thought if mixing cell bg and inner circle.
+                // For now, the main logic for cellBackgroundColor stands, and makeTextCircular is an addon if uncommented.
+            }
+            
+            // The main logic from the user request is that the CELL background should be consistent when selected.
+            // So, if isSelected, cellBackgroundColor is already blue. 
+            // The `makeTextCircular` above would put a circle *inside* this blue cell, which might be redundant
+            // or desired depending on exact visual goal. For now, it's off.
+
             BoxDecoration cellDecoration = BoxDecoration(
-              color: cellBackgroundColor,
+              color: cellBackgroundColor, // Blue if selected, green if events & not selected, or null
               border: Border(
                 top: BorderSide(
                   color: theme.dividerColor.withOpacity(0.2),
                   width: 0.5,
                 ),
                 right: BorderSide(
-                  color: theme.dividerColor.withOpacity(0),
+                  color: theme.dividerColor.withOpacity(0), // No right border
                   width: 0.5,
                 ),
               ),
@@ -260,7 +280,7 @@ class MonthPageContent extends StatelessWidget {
                 height: boxSize,
                 decoration: cellDecoration,
                 child: Center(
-                  child: effectiveDayNumberWidget,
+                  child: dayContent, // This is now just the styled Text widget
                 ),
               ),
             );
@@ -290,7 +310,7 @@ class MonthPageContent extends StatelessWidget {
                     width: 0.5,
                   ),
                   right: BorderSide(
-                    color: theme.dividerColor.withOpacity(0),
+                    color: theme.dividerColor.withOpacity(0), // No right border
                     width: 0.5,
                   ),
                 ),
