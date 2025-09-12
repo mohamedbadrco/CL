@@ -14,6 +14,8 @@ class WeekPageContent extends StatelessWidget {
   final Function(Event) onEventTapped; // New callback for tapping an event
   final VoidCallback onGoToPreviousWeek;
   final VoidCallback onGoToNextWeek;
+  final List<int> weekendDays;
+  final Color? weekendColor;
 
   const WeekPageContent({
     super.key,
@@ -28,6 +30,8 @@ class WeekPageContent extends StatelessWidget {
     required this.onEventTapped, // Added to constructor
     required this.onGoToPreviousWeek,
     required this.onGoToNextWeek,
+    required this.weekendDays,
+    required this.weekendColor,
   });
 
   Widget _buildTimeLabelStack(BuildContext context) {
@@ -87,8 +91,7 @@ class WeekPageContent extends StatelessWidget {
           event.endTimeAsTimeOfDay.hour * 60 + event.endTimeAsTimeOfDay.minute;
       final minHourMinutes = minHour * 60;
 
-      final topPosition =
-          ((startMinutes - minHourMinutes) / 60.0) * hourHeight;
+      final topPosition = ((startMinutes - minHourMinutes) / 60.0) * hourHeight;
       final eventDurationInMinutes = endMinutes - startMinutes;
       double eventHeight = (eventDurationInMinutes / 60.0) * hourHeight;
 
@@ -113,13 +116,13 @@ class WeekPageContent extends StatelessWidget {
               padding: const EdgeInsets.all(4.0),
               margin: const EdgeInsets.only(bottom: 1.0),
               decoration: BoxDecoration(
-                color: theme.colorScheme.onPrimary, 
+                color: theme.colorScheme.onPrimary,
                 borderRadius: BorderRadius.circular(4.0),
               ),
               child: Text(
                 event.title,
                 style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.primary, 
+                  color: theme.colorScheme.primary,
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
                 ),
@@ -215,13 +218,16 @@ class WeekPageContent extends StatelessWidget {
                         style: theme.textTheme.labelSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                           fontSize: 10,
-                          color: theme.brightness == Brightness.dark
-                              ? theme.colorScheme.onBackground.withOpacity(0.8)
-                              : (isTodayDate
-                                    ? theme.colorScheme.primary
-                                    : theme.colorScheme.onSurface.withOpacity(
-                                        0.8,
-                                      )),
+                          color: isTodayDate
+                              ? theme.colorScheme.primary
+                              : (weekendDays.contains(date.weekday)
+                                    ? (weekendColor ??
+                                          theme.colorScheme.primary)
+                                    : (theme.brightness == Brightness.dark
+                                          ? theme.colorScheme.onBackground
+                                                .withOpacity(0.8)
+                                          : theme.colorScheme.onSurface
+                                                .withOpacity(0.8))),
                         ),
                       ),
                       Text(
@@ -230,11 +236,14 @@ class WeekPageContent extends StatelessWidget {
                           fontWeight: isTodayDate
                               ? FontWeight.bold
                               : FontWeight.normal,
-                          color: theme.brightness == Brightness.dark
-                              ? theme.colorScheme.onBackground
-                              : (isTodayDate
-                                    ? theme.colorScheme.primary
-                                    : theme.colorScheme.onSurface),
+                          color: isTodayDate
+                              ? theme.colorScheme.primary
+                              : (weekendDays.contains(date.weekday)
+                                    ? (weekendColor ??
+                                          theme.colorScheme.primary)
+                                    : (theme.brightness == Brightness.dark
+                                          ? theme.colorScheme.onBackground
+                                          : theme.colorScheme.onSurface)),
                         ),
                       ),
                     ],
@@ -280,9 +289,7 @@ class WeekPageContent extends StatelessWidget {
                                   color: borderColor,
                                   width: 0.5,
                                 ),
-                                right:
-                                    date.weekday ==
-                                        DateTime.sunday
+                                right: weekendDays.contains(date.weekday)
                                     ? BorderSide(color: borderColor, width: 0.5)
                                     : BorderSide.none,
                               ),

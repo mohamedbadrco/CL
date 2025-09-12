@@ -8,11 +8,16 @@ import './api/gemini_service.dart';
 import './month_page.dart'; // Import MonthPageContent
 import './week_page.dart'; // Import WeekPageContent
 import './notification_service.dart'; // Import NotificationService
+import 'package:timezone/data/latest.dart' as tzdata;
+import './weekend_days.dart'; // <-- Add this import
+
 // import \'package:flutter_dotenv/flutter_dotenv.dart\'; // Commented out, ensure it\'s handled if needed
 
 // Updated main function:
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // REQUIRED
+  tzdata
+      .initializeTimeZones(); // Initialize timezone data for weekend detection
   try {
     await initializeNotifications(); // Initialize notifications system
   } catch (e) {
@@ -280,7 +285,7 @@ class _CalendarAppState extends State<CalendarApp> {
 
   @override
   Widget build(BuildContext context) {
-    final slected_blu = const Color.fromARGB(255, 30, 110, 244);
+    final selectedBlue = const Color.fromARGB(255, 30, 110, 244);
     final level1_green = const Color.fromARGB(255, 74, 217, 104);
     final level2_green = const Color.fromRGBO(0, 137, 50, 1);
 
@@ -310,7 +315,7 @@ class _CalendarAppState extends State<CalendarApp> {
       onBackground: const Color(0xFFebebf0),
       onSurface: const Color(0xFFebebf0),
       onPrimary: const Color(0xFF30D158),
-      primary: const Color.fromRGBO(58, 58, 60, 1),
+      primary: const Color(0xFFebebf0),
       secondary: const Color(0xFF30D158),
       onSecondary: const Color(0xFF1c1c1e),
       error: const Color(0xFFff4345),
@@ -480,6 +485,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
   String? _aiDaySummary;
   bool _isFetchingAiSummary = false;
 
+  List<int> _weekendDays = []; // Default: Sunday (0), Saturday (6)
+
   @override
   void initState() {
     super.initState();
@@ -511,6 +518,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
           print('Error fetching AI summary on launch: $e');
         }
       }
+    });
+    _loadWeekendDays();
+  }
+
+  Future<void> _loadWeekendDays() async {
+    // Ensure timezone data is initialized before calling this
+    // You should call tzdata.initializeTimeZones() in your main() if not already
+    final weekends = getWeekendDaysForCurrentLocation();
+    // Use the [0, 6] format (Sun=0, Sat=6) directly,
+    // or default to it if `weekends` is null.
+    print("+++++++++++++++++++++${weekends}");
+    setState(() {
+      _weekendDays = weekends ?? [0, 6];
     });
   }
 
@@ -867,7 +887,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final weekDayNames = DateFormat.EEEE().dateSymbols.STANDALONENARROWWEEKDAYS;
+    final selectedBlue = const Color.fromARGB(255, 30, 110, 244);
+
+    final intlDateSymbols = DateFormat.EEEE().dateSymbols;
+    final weekDayNames = intlDateSymbols.STANDALONENARROWWEEKDAYS;
 
     final String appBarTitleText;
     final DateTime referenceDateForTitle = _isWeekView
@@ -953,26 +976,36 @@ class _CalendarScreenState extends State<CalendarScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               child: Row(
-                children: weekDayNames
-                    .map(
-                      (name) => Expanded(
-                        child: Center(
-                          child: Text(
-                            name.toUpperCase(),
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 10,
-                              color: theme.brightness == Brightness.dark
-                                  ? theme.colorScheme.onBackground.withOpacity(
-                                      0.7,
-                                    )
-                                  : theme.colorScheme.primary.withOpacity(0.8),
-                            ),
-                          ),
+                children: weekDayNames.asMap().entries.map((entry) {
+                  // entry.key is the 0-6 index into STANDALONENARROWWEEKDAYS
+                  // _weekendDays uses Sun=0, Mon=1, ..., Sat=6
+
+                  // entry.key corresponds to Sun=0, Mon=1, ..., Sat=6
+                  int dayValueInOurScheme = entry.key;
+                  bool isHeaderWeekend = _weekendDays.contains(
+                    dayValueInOurScheme,
+                  );
+
+                  return Expanded(
+                    child: Center(
+                      child: Text(
+                        entry.value.toUpperCase(),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10,
+                          color: isHeaderWeekend
+                              ? selectedBlue
+                              : (theme.brightness == Brightness.dark
+                                    ? theme.colorScheme.onBackground
+                                          .withOpacity(0.7)
+                                    : theme.colorScheme.primary.withOpacity(
+                                        0.8,
+                                      )),
                         ),
                       ),
-                    )
-                    .toList(),
+                    ),
+                  );
+                }).toList(),
               ),
             ),
           Expanded(
@@ -1014,7 +1047,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                 _selectedDate = newFocusedWeekStart;
                               }
                             }
-                            _fetchAiDaySummary(_selectedDate!);
+                            if (_selectedDate != null) {
+                              _fetchAiDaySummary(_selectedDate!);
+                            }
                           });
                         }
                       },
@@ -1032,6 +1067,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           onEventTapped: _navigateToEventDetails,
                           onGoToPreviousWeek: _goToPreviousWeek,
                           onGoToNextWeek: _goToNextWeek,
+                          weekendDays: _weekendDays, // <-- Pass weekend days
+                          weekendColor: selectedBlue, // <-- Pass color
                         );
                       },
                     )
@@ -1063,7 +1100,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
                             if (_selectedDate != candidateDate) {
                               _selectedDate = candidateDate;
-                              _fetchAiDaySummary(_selectedDate!);
+                              if (_selectedDate != null) {
+                                _fetchAiDaySummary(_selectedDate!);
+                              }
                             } else if (_selectedDate == null) {
                               _aiDaySummary =
                                   "Select a day to see its AI summary.";
@@ -1086,11 +1125,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               setState(() {
                                 _selectedDate = date;
                               });
-                              _fetchAiDaySummary(date);
+                              if (_selectedDate != null) {
+                                _fetchAiDaySummary(_selectedDate!);
+                              }
                             }
                           },
                           onDateDoubleTap: _addEvent,
                           onShowDayEvents: _showDayEventsTimeSlotsPage,
+                          weekendDays: _weekendDays, // <-- Pass weekend days
+                          weekendColor: selectedBlue, // <-- Pass color
                         );
                       },
                     ),

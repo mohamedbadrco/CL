@@ -17,6 +17,8 @@ class MonthPageContent extends StatelessWidget {
   final Function(DateTime) onDateSelected;
   final Function(DateTime) onDateDoubleTap;
   final Function(DateTime) onShowDayEvents;
+  final List<int> weekendDays;
+  final Color? weekendColor;
 
   const MonthPageContent({
     super.key,
@@ -29,6 +31,8 @@ class MonthPageContent extends StatelessWidget {
     required this.onDateSelected,
     required this.onDateDoubleTap,
     required this.onShowDayEvents,
+    required this.weekendDays,
+    required this.weekendColor,
   });
 
   Widget _buildSelectedDayEventSummary(BuildContext context) {
@@ -87,26 +91,26 @@ class MonthPageContent extends StatelessWidget {
             child: isFetchingAiSummary
                 ? const Center(child: CircularProgressIndicator())
                 : aiDaySummary != null && aiDaySummary!.isNotEmpty
-                    ? SingleChildScrollView(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16.0,
-                          vertical: 8.0,
-                        ),
-                        child: Text(
-                          aiDaySummary!,
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                      )
-                    : Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Text(
-                            "No AI summary available for this day, or an error occurred.",
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                        ),
+                ? SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 8.0,
+                    ),
+                    child: Text(
+                      aiDaySummary!,
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  )
+                : Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text(
+                        "No AI summary available for this day, or an error occurred.",
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium,
                       ),
+                    ),
+                  ),
           ),
           const Divider(height: 1),
         ],
@@ -192,54 +196,65 @@ class MonthPageContent extends StatelessWidget {
         LayoutBuilder(
           builder: (context, constraints) {
             final boxSize = constraints.maxWidth;
-            
-            Color? cellBackgroundColor = null; // Default to no specific background
-            Color dayTextColor = theme.colorScheme.onSurface; // Default text color
+
+            Color? cellBackgroundColor;
+            Color dayTextColor = theme.colorScheme.onSurface;
             FontWeight dayTextWeight = FontWeight.normal;
             BoxBorder? cellAllBorder;
             BorderSide topGridBorderSide = BorderSide(
-                color: theme.dividerColor.withOpacity(0.2),
-                width: 0.5,
+              color: theme.dividerColor.withOpacity(0.2),
+              width: 0.5,
             );
             BorderRadius? cellBorderRadius;
             Widget? eventIndicatorLine;
 
-            TextStyle baseDayNumberTextStyle = theme.textTheme.bodySmall!.copyWith(
-                fontSize: boxSize * 0.4 > 16 ? 16 : boxSize * 0.4, // Cap font size
-            );
+            TextStyle baseDayNumberTextStyle = theme.textTheme.bodySmall!
+                .copyWith(fontSize: boxSize * 0.4 > 16 ? 16 : boxSize * 0.4);
 
-            // Determine text color and event indicator line first
+            // Weekend coloring
+            final isWeekend = weekendDays.contains(date.weekday % 7);
+
             if (isTodayDate) {
-              dayTextColor = level2Green; // Today's text is green
+              dayTextColor = level2Green;
               dayTextWeight = FontWeight.w800;
             }
 
             if (eventCount > 0) {
               Color lineColor = eventCount == 1 ? level1Green : level2Green;
               eventIndicatorLine = Container(
-                width: boxSize * 0.6, // 60% of cell width
-                height: 2.5,          // Thickness of the line
+                width: boxSize * 0.6,
+                height: 2.5,
                 color: lineColor,
-                margin: const EdgeInsets.only(top: 2.0), // Space between number and line
+                margin: const EdgeInsets.only(top: 2.0),
               );
             }
-            
-            // Apply selection styling (border and override text color/weight)
+
             if (isSelected) {
               cellAllBorder = Border.all(
                 color: theme.colorScheme.onSurface,
                 width: 2,
               );
               cellBorderRadius = BorderRadius.circular(6.0);
-              dayTextColor = theme.colorScheme.onSurface; // Selected text color
-              dayTextWeight = FontWeight.w800; 
+              dayTextColor = theme.colorScheme.onSurface;
+              dayTextWeight = FontWeight.w800;
             }
-            
+
+            final Color finalDayTextColor = isSelected
+                ? theme.colorScheme.onSurface
+                : (isTodayDate
+                      ? level2Green
+                      : (isWeekend
+                            ? (weekendColor ?? Colors.blue) // MODIFIED LINE
+                            : dayTextColor));
+            final FontWeight finalDayTextWeight = isSelected || isTodayDate
+                ? FontWeight.w800
+                : dayTextWeight;
+
             Widget dayNumberText = Text(
               day.toString(),
               style: baseDayNumberTextStyle.copyWith(
-                color: dayTextColor,
-                fontWeight: dayTextWeight,
+                color: finalDayTextColor,
+                fontWeight: finalDayTextWeight,
               ),
             );
 
@@ -252,13 +267,16 @@ class MonthPageContent extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: columnChildren,
             );
-            
+
             Border? nonSelectedCellGridBorder;
             if (!isSelected) {
-                nonSelectedCellGridBorder = Border(
-                    top: topGridBorderSide,
-                    right: BorderSide(color: theme.dividerColor.withOpacity(0), width: 0.5),
-                );
+              nonSelectedCellGridBorder = Border(
+                top: topGridBorderSide,
+                right: BorderSide(
+                  color: theme.dividerColor.withOpacity(0),
+                  width: 0.5,
+                ),
+              );
             }
 
             return GestureDetector(
@@ -267,19 +285,17 @@ class MonthPageContent extends StatelessWidget {
               child: Container(
                 width: boxSize,
                 height: boxSize,
-                decoration: isSelected 
-                    ? BoxDecoration( // Selected cell styling
-                        color: cellBackgroundColor, // Should be null or theme default
+                decoration: isSelected
+                    ? BoxDecoration(
+                        color: cellBackgroundColor,
                         border: cellAllBorder,
                         borderRadius: cellBorderRadius,
                       )
-                    : BoxDecoration( // Non-selected cell styling
-                        color: cellBackgroundColor, // Should be null or theme default
+                    : BoxDecoration(
+                        color: cellBackgroundColor,
                         border: nonSelectedCellGridBorder,
                       ),
-                child: Center(
-                  child: dayContent,
-                ),
+                child: Center(child: dayContent),
               ),
             );
           },
@@ -291,7 +307,7 @@ class MonthPageContent extends StatelessWidget {
     int totalCells = weekdayOffset + daysInMonth;
     int nextDaysRequired = (totalCells <= 35)
         ? (35 - totalCells)
-        : (42 - totalCells); 
+        : (42 - totalCells);
 
     for (int i = 1; i <= nextDaysRequired; i++) {
       dayWidgets.add(
@@ -308,7 +324,7 @@ class MonthPageContent extends StatelessWidget {
                     width: 0.5,
                   ),
                   right: BorderSide(
-                    color: theme.dividerColor.withOpacity(0), 
+                    color: theme.dividerColor.withOpacity(0),
                     width: 0.5,
                   ),
                 ),

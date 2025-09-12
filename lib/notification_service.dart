@@ -7,7 +7,8 @@ import 'package:intl/intl.dart';
 import './database_helper.dart'; // For Event class
 import 'package:alarm/alarm.dart'; // Import for the new alarm package
 import 'package:flutter/material.dart';
-import 'package:permission_handler/permission_handler.dart'; // Import permission_handler
+import 'package:permission_handler/permission_handler.dart';
+// Import permission_handler
 
 // Initialize the flutter_local_notifications plugin
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -15,8 +16,8 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 
 const AndroidNotificationDetails androidNotificationDetails =
     AndroidNotificationDetails(
-      'event_channel_id', 
-      'Event Reminders', 
+      'event_channel_id',
+      'Event Reminders',
       channelDescription: 'Notifications for upcoming events',
       importance: Importance.max,
       priority: Priority.high,
@@ -45,33 +46,54 @@ Future<void> initializeNotifications() async {
     // Request Notification Permission (Android 13+)
     var notificationStatus = await Permission.notification.status;
     print("[Init] Initial Notification Permission Status: $notificationStatus");
-    if (notificationStatus.isDenied || !notificationStatus.isGranted) { // More explicit check
-      print("[Init] Notification permission not granted or denied. Requesting...");
+    if (notificationStatus.isDenied || !notificationStatus.isGranted) {
+      // More explicit check
+      print(
+        "[Init] Notification permission not granted or denied. Requesting...",
+      );
       notificationStatus = await Permission.notification.request();
-      print("[Init] Notification Permission Status AFTER request: $notificationStatus");
+      print(
+        "[Init] Notification Permission Status AFTER request: $notificationStatus",
+      );
     }
     if (notificationStatus.isPermanentlyDenied) {
-      print("[Init] Notification permission permanently denied. Please enable it in settings.");
+      print(
+        "[Init] Notification permission permanently denied. Please enable it in settings.",
+      );
     } else if (!notificationStatus.isGranted) {
-        print("[Init] Notification permission was not granted during init.");
+      print("[Init] Notification permission was not granted during init.");
     } else {
-        print("[Init] Notification permission is granted (checked during init).");
+      print("[Init] Notification permission is granted (checked during init).");
     }
 
     // Request Schedule Exact Alarm Permission (Android 12+)
     var scheduleExactAlarmStatus = await Permission.scheduleExactAlarm.status;
-    print("[Init] Initial Schedule Exact Alarm Permission Status: $scheduleExactAlarmStatus");
-    if (scheduleExactAlarmStatus.isDenied || !scheduleExactAlarmStatus.isGranted) { // More explicit check
-      print("[Init] Schedule exact alarm permission not granted or denied. Requesting...");
+    print(
+      "[Init] Initial Schedule Exact Alarm Permission Status: $scheduleExactAlarmStatus",
+    );
+    if (scheduleExactAlarmStatus.isDenied ||
+        !scheduleExactAlarmStatus.isGranted) {
+      // More explicit check
+      print(
+        "[Init] Schedule exact alarm permission not granted or denied. Requesting...",
+      );
       scheduleExactAlarmStatus = await Permission.scheduleExactAlarm.request();
-      print("[Init] Schedule Exact Alarm Permission Status AFTER request: $scheduleExactAlarmStatus");
+      print(
+        "[Init] Schedule Exact Alarm Permission Status AFTER request: $scheduleExactAlarmStatus",
+      );
     }
     if (scheduleExactAlarmStatus.isPermanentlyDenied) {
-        print("[Init] Schedule exact alarm permission permanently denied. Please enable it in settings.");
+      print(
+        "[Init] Schedule exact alarm permission permanently denied. Please enable it in settings.",
+      );
     } else if (!scheduleExactAlarmStatus.isGranted) {
-        print("[Init] Schedule exact alarm permission was not granted during init. Alarms may not be precise.");
+      print(
+        "[Init] Schedule exact alarm permission was not granted during init. Alarms may not be precise.",
+      );
     } else {
-        print("[Init] Schedule exact alarm permission is granted (checked during init).");
+      print(
+        "[Init] Schedule exact alarm permission is granted (checked during init).",
+      );
     }
   }
 
@@ -97,7 +119,7 @@ Future<void> initializeNotifications() async {
   );
 
   try {
-    await Alarm.init(); 
+    await Alarm.init();
     print('Alarm package initialized successfully.');
   } catch (e) {
     print('Error initializing alarm package: $e');
@@ -112,8 +134,10 @@ Future<void> scheduleEventNotification(Event event) async {
   }
 
   if (!event.scheduleAlarm) {
-    print('Alarm not scheduled for event "${event.title}" (ID: ${event.id}) as per user preference.');
-    await cancelEventNotification(event.id!); 
+    print(
+      'Alarm not scheduled for event "${event.title}" (ID: ${event.id}) as per user preference.',
+    );
+    await cancelEventNotification(event.id!);
     return;
   }
 
@@ -121,20 +145,30 @@ Future<void> scheduleEventNotification(Event event) async {
     print("--- Checking permissions for scheduling event: ${event.title} ---");
     // 1. Check/Request Notification Permission
     var initialNotificationStatus = await Permission.notification.status;
-    print("[Schedule] Current Notification Permission Status: $initialNotificationStatus");
+    print(
+      "[Schedule] Current Notification Permission Status: $initialNotificationStatus",
+    );
 
     if (!initialNotificationStatus.isGranted) {
-      print("[Schedule] Notification permission NOT currently granted. Requesting...");
+      print(
+        "[Schedule] Notification permission NOT currently granted. Requesting...",
+      );
       var newNotificationStatus = await Permission.notification.request();
-      print("[Schedule] Notification Permission Status AFTER request: $newNotificationStatus");
+      print(
+        "[Schedule] Notification Permission Status AFTER request: $newNotificationStatus",
+      );
 
       if (newNotificationStatus.isPermanentlyDenied) {
-        print("[Schedule] Notification permission permanently denied. Cannot schedule. Please enable in settings.");
+        print(
+          "[Schedule] Notification permission permanently denied. Cannot schedule. Please enable in settings.",
+        );
         // Optionally: openAppSettings();
         return;
       }
       if (!newNotificationStatus.isGranted) {
-        print("[Schedule] Notification permission was STILL NOT granted after request. Cannot schedule for event: ${event.title}");
+        print(
+          "[Schedule] Notification permission was STILL NOT granted after request. Cannot schedule for event: ${event.title}",
+        );
         return;
       }
       print("[Schedule] Notification permission granted upon this request.");
@@ -143,21 +177,35 @@ Future<void> scheduleEventNotification(Event event) async {
     }
 
     // 2. Check/Request Schedule Exact Alarm Permission
-    var initialScheduleExactAlarmStatus = await Permission.scheduleExactAlarm.status;
-    print("[Schedule] Current Schedule Exact Alarm Permission Status: $initialScheduleExactAlarmStatus");
+    var initialScheduleExactAlarmStatus =
+        await Permission.scheduleExactAlarm.status;
+    print(
+      "[Schedule] Current Schedule Exact Alarm Permission Status: $initialScheduleExactAlarmStatus",
+    );
 
     if (!initialScheduleExactAlarmStatus.isGranted) {
-      print("[Schedule] Schedule exact alarm permission NOT currently granted. Requesting...");
-      var newScheduleExactAlarmStatus = await Permission.scheduleExactAlarm.request();
-      print("[Schedule] Schedule Exact Alarm Permission Status AFTER request: $newScheduleExactAlarmStatus");
+      print(
+        "[Schedule] Schedule exact alarm permission NOT currently granted. Requesting...",
+      );
+      var newScheduleExactAlarmStatus = await Permission.scheduleExactAlarm
+          .request();
+      print(
+        "[Schedule] Schedule Exact Alarm Permission Status AFTER request: $newScheduleExactAlarmStatus",
+      );
 
       if (newScheduleExactAlarmStatus.isPermanentlyDenied) {
-        print("[Schedule] Schedule exact alarm permission permanently denied. Alarms may not be precise. Enable in settings.");
-        // Optionally: openAppSettings(); 
+        print(
+          "[Schedule] Schedule exact alarm permission permanently denied. Alarms may not be precise. Enable in settings.",
+        );
+        // Optionally: openAppSettings();
       } else if (!newScheduleExactAlarmStatus.isGranted) {
-        print("[Schedule] Schedule exact alarm permission was STILL NOT granted after request. Alarms may not be precise for event: ${event.title}");
+        print(
+          "[Schedule] Schedule exact alarm permission was STILL NOT granted after request. Alarms may not be precise for event: ${event.title}",
+        );
       } else {
-        print("[Schedule] Schedule exact alarm permission granted upon this request.");
+        print(
+          "[Schedule] Schedule exact alarm permission granted upon this request.",
+        );
       }
     } else {
       print("[Schedule] Schedule exact alarm permission was ALREADY granted.");
@@ -166,11 +214,17 @@ Future<void> scheduleEventNotification(Event event) async {
   }
 
   final DateTime eventStartTime = event.startTimeAsDateTime;
-  final DateTime alarmTime = eventStartTime.subtract(const Duration(minutes: 10));
-  print('Scheduling alarm for event: "${event.title}" (ID: ${event.id}) at $alarmTime.');
+  final DateTime alarmTime = eventStartTime.subtract(
+    const Duration(minutes: 10),
+  );
+  print(
+    'Scheduling alarm for event: "${event.title}" (ID: ${event.id}) at $alarmTime.',
+  );
 
   if (alarmTime.isBefore(DateTime.now())) {
-    print("Alarm time for event '${event.title}' is in the past. Not scheduling alarm.");
+    print(
+      "Alarm time for event '${event.title}' is in the past. Not scheduling alarm.",
+    );
     return;
   }
 
@@ -181,7 +235,7 @@ Future<void> scheduleEventNotification(Event event) async {
       assetAudioPath: 'assets/good_morning.mp3',
       loopAudio: true,
       vibrate: true,
-      warningNotificationOnKill: Platform.isIOS, 
+      warningNotificationOnKill: Platform.isIOS,
       androidFullScreenIntent: true,
       volumeSettings: VolumeSettings.fade(
         volume: 0.8,
@@ -197,18 +251,24 @@ Future<void> scheduleEventNotification(Event event) async {
       ),
     );
     await Alarm.set(alarmSettings: alarmSettings);
-    print('Alarm scheduled via alarm package for event "${event.title}" (ID: ${event.id}) at $alarmTime');
+    print(
+      'Alarm scheduled via alarm package for event "${event.title}" (ID: ${event.id}) at $alarmTime',
+    );
   } catch (e) {
-    print('Error scheduling alarm for event ID ${event.id} using alarm package: $e');
+    print(
+      'Error scheduling alarm for event ID ${event.id} using alarm package: $e',
+    );
   }
 }
 
 Future<void> cancelEventNotification(int eventId) async {
   try {
-    await Alarm.stop(eventId); 
+    await Alarm.stop(eventId);
     print('Alarm cancelled for event ID $eventId using alarm package.');
   } catch (e) {
-    print('Error cancelling alarm for event ID $eventId using alarm package: $e');
+    print(
+      'Error cancelling alarm for event ID $eventId using alarm package: $e',
+    );
   }
 }
 
@@ -236,8 +296,12 @@ Future<void> cleanupCompletedEventNotifications() async {
   int cleanedCount = 0;
   for (Event event in allEvents) {
     if (event.id != null && event.endTimeAsDateTime.isBefore(now)) {
-      print("[Cleanup] Cleaning up completed event's alarm: ${event.title} (ID: ${event.id})");
-      await Alarm.stop(event.id!); // Assuming Alarm.stop() is idempotent and won't error if no alarm found
+      print(
+        "[Cleanup] Cleaning up completed event's alarm: ${event.title} (ID: ${event.id})",
+      );
+      await Alarm.stop(
+        event.id!,
+      ); // Assuming Alarm.stop() is idempotent and won't error if no alarm found
       cleanedCount++;
     }
   }
