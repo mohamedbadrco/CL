@@ -198,7 +198,7 @@ class MonthPageContent extends StatelessWidget {
             final boxSize = constraints.maxWidth;
 
             Color? cellBackgroundColor;
-            Color dayTextColor = theme.colorScheme.onSurface;
+            Color dayTextColor = theme.colorScheme.onSurface; // Default color
             FontWeight dayTextWeight = FontWeight.normal;
             BoxBorder? cellAllBorder;
             BorderSide topGridBorderSide = BorderSide(
@@ -215,8 +215,10 @@ class MonthPageContent extends StatelessWidget {
             final isWeekend = weekendDays.contains(date.weekday % 7);
 
             if (isTodayDate) {
-              dayTextColor = level2Green;
+              dayTextColor = level2Green; // Today's color
               dayTextWeight = FontWeight.w800;
+            } else if (isWeekend) {
+              dayTextColor = weekendColor ?? Colors.blue; // Weekend color
             }
 
             if (eventCount > 0) {
@@ -228,6 +230,8 @@ class MonthPageContent extends StatelessWidget {
                 margin: const EdgeInsets.only(top: 2.0),
               );
             }
+            
+            Color finalDayTextColor = dayTextColor; // Use the determined dayTextColor
 
             if (isSelected) {
               cellAllBorder = Border.all(
@@ -235,17 +239,11 @@ class MonthPageContent extends StatelessWidget {
                 width: 2,
               );
               cellBorderRadius = BorderRadius.circular(6.0);
-              dayTextColor = theme.colorScheme.onSurface;
-              dayTextWeight = FontWeight.w800;
+              // dayTextColor is already set based on whether it is today, weekend or default.
+              dayTextWeight = FontWeight.w800; // Selected day is always bold
             }
 
-            final Color finalDayTextColor = isSelected
-                ? theme.colorScheme.onSurface
-                : (isTodayDate
-                      ? level2Green
-                      : (isWeekend
-                            ? (weekendColor ?? Colors.blue) // MODIFIED LINE
-                            : dayTextColor));
+
             final FontWeight finalDayTextWeight = isSelected || isTodayDate
                 ? FontWeight.w800
                 : dayTextWeight;
