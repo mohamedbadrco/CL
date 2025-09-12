@@ -59,6 +59,7 @@ class DayScheduleView extends StatelessWidget {
         children: [
           _buildTimeSlots(context),
           _buildEvents(context, todayEvents),
+          _buildCurrentTimeIndicator(context),
         ],
       ),
     );
@@ -127,7 +128,7 @@ class DayScheduleView extends StatelessWidget {
     final theme = Theme.of(context);
     final eventBgColor = theme.colorScheme.onPrimary;
     final eventTextColor =
-        theme.colorScheme.primary; // Changed for better contrast
+        theme.colorScheme.primary; 
 
     for (var event in dayEvents) {
       final double topOffset = _calculateTopOffset(event.startTimeAsTimeOfDay);
@@ -163,7 +164,7 @@ class DayScheduleView extends StatelessWidget {
                 event.title,
                 style: GoogleFonts.inter(
                   textStyle: TextStyle(
-                    color: eventTextColor, // Will use theme.colorScheme.primary
+                    color: eventTextColor,
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
@@ -180,6 +181,76 @@ class DayScheduleView extends StatelessWidget {
     return SizedBox(
       height: totalStackHeight,
       child: Stack(children: eventWidgets),
+    );
+  }
+
+  Widget _buildCurrentTimeIndicator(BuildContext context) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final theme = Theme.of(context);
+
+    if (date.year != today.year ||
+        date.month != today.month ||
+        date.day != today.day) {
+      return const SizedBox.shrink();
+    }
+
+    final currentTime = TimeOfDay.fromDateTime(now);
+    final minTimeInMinutes = TaminTime.hour * 60 + TaminTime.minute;
+    final maxTimeInMinutes = TamaxTime.hour * 60 + TamaxTime.minute;
+    final currentTimeInMinutes = currentTime.hour * 60 + currentTime.minute;
+
+    if (currentTimeInMinutes < minTimeInMinutes ||
+        currentTimeInMinutes > maxTimeInMinutes) {
+      return const SizedBox.shrink();
+    }
+
+    final double topOffset = _calculateTopOffset(currentTime);
+    final double totalScheduleHeight = (TamaxTime.hour - TaminTime.hour + 1) * hourHeight;
+    const double indicatorHeight = 14.0; // Height for the text and line
+
+    if (topOffset < 0 || topOffset > totalScheduleHeight) {
+      return const SizedBox.shrink();
+    }
+
+    return Positioned(
+      top: topOffset - (indicatorHeight / 2), // Center the indicator (line + text)
+      left: 50, 
+      right: 0,
+      height: indicatorHeight,
+      child: Stack(
+        clipBehavior: Clip.none, 
+        children: [
+          Positioned(
+            top: indicatorHeight / 2 - 0.5, // Center line within the indicator height
+            left: 0,
+            right: 0,
+            child: Container(
+              height: 1.0, 
+              color: Colors.red,
+            ),
+          ),
+          Positioned(
+            top: 0,
+            right: 5, // Padding from the right edge of the schedule area
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
+              decoration: BoxDecoration(
+                color: theme.canvasColor.withOpacity(0.75),
+                borderRadius: BorderRadius.circular(2.0),
+              ),
+              child: Text(
+                DateFormat.jm().format(now),
+                style: const TextStyle(
+                  color: Colors.red,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

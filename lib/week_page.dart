@@ -10,8 +10,8 @@ class WeekPageContent extends StatelessWidget {
   final int minHour;
   final int maxHour;
   final double timeLabelWidth;
-  final Function(DateTime) onShowDayEvents; // Kept for now, if needed elsewhere
-  final Function(Event) onEventTapped; // New callback for tapping an event
+  final Function(DateTime) onShowDayEvents;
+  final Function(Event) onEventTapped;
   final VoidCallback onGoToPreviousWeek;
   final VoidCallback onGoToNextWeek;
   final List<int> weekendDays;
@@ -27,7 +27,7 @@ class WeekPageContent extends StatelessWidget {
     required this.maxHour,
     required this.timeLabelWidth,
     required this.onShowDayEvents,
-    required this.onEventTapped, // Added to constructor
+    required this.onEventTapped,
     required this.onGoToPreviousWeek,
     required this.onGoToNextWeek,
     required this.weekendDays,
@@ -72,6 +72,7 @@ class WeekPageContent extends StatelessWidget {
     final theme = Theme.of(context);
     List<Widget> stackChildren = [];
 
+    // Add hour dividers
     for (int hour = minHour; hour <= maxHour; hour++) {
       stackChildren.add(
         Positioned(
@@ -83,6 +84,7 @@ class WeekPageContent extends StatelessWidget {
       );
     }
 
+    // Add events
     for (var event in dayEventsList) {
       final startMinutes =
           event.startTimeAsTimeOfDay.hour * 60 +
@@ -111,7 +113,7 @@ class WeekPageContent extends StatelessWidget {
           width: columnWidth - 4.0,
           height: eventHeight,
           child: GestureDetector(
-            onTap: () => onEventTapped(event), // Changed to use onEventTapped
+            onTap: () => onEventTapped(event),
             child: Container(
               padding: const EdgeInsets.all(4.0),
               margin: const EdgeInsets.only(bottom: 1.0),
@@ -134,6 +136,70 @@ class WeekPageContent extends StatelessWidget {
         ),
       );
     }
+
+    // Add current time indicator
+    final now = DateTime.now();
+    final currentDate = DateTime(now.year, now.month, now.day);
+    if (day.year == currentDate.year &&
+        day.month == currentDate.month &&
+        day.day == currentDate.day) {
+      final currentTimeInMinutes = now.hour * 60 + now.minute;
+      final minHourMinutes = minHour * 60;
+      final maxHourMinutes = maxHour * 60 + 59;
+
+      if (currentTimeInMinutes >= minHourMinutes &&
+          currentTimeInMinutes <= maxHourMinutes) {
+        final topOffset =
+            ((currentTimeInMinutes - minHourMinutes) / 60.0) * hourHeight;
+        final double totalScheduleHeight = (maxHour - minHour + 1) * hourHeight;
+        const double indicatorHeight = 12.0;
+
+        if (topOffset >= 0 && topOffset <= totalScheduleHeight) {
+          stackChildren.add(
+            Positioned(
+              top: topOffset - (indicatorHeight / 2), // Center the indicator text vertically
+              left: 0,
+              width: columnWidth,
+              height: indicatorHeight,
+              child: Stack(
+                clipBehavior: Clip.none, // Allow text to overflow slightly if needed
+                children: [
+                  Positioned(
+                    top: indicatorHeight / 2 - 0.5, // Center the line in the middle of the allocated height
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 1.0,
+                      color: Colors.red,
+                    ),
+                  ),
+                  Positioned(
+                    top: 0,
+                    right: 2, // Small padding from the right edge
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 3.0, vertical: 1.0),
+                      decoration: BoxDecoration(
+                        color: theme.canvasColor.withOpacity(0.75), // Semi-transparent background
+                        borderRadius: BorderRadius.circular(2.0),
+                      ),
+                      child: Text(
+                        DateFormat.jm().format(now),
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+      }
+    }
+
     return Stack(children: stackChildren);
   }
 
@@ -220,7 +286,7 @@ class WeekPageContent extends StatelessWidget {
                           fontSize: 10,
                           color: isTodayDate
                               ? theme.colorScheme.primary
-                              : (weekendDays.contains(date.weekday)
+                              : (weekendDays.contains(date.weekday % 7)
                                     ? (weekendColor ??
                                           theme.colorScheme.primary)
                                     : (theme.brightness == Brightness.dark
@@ -238,7 +304,7 @@ class WeekPageContent extends StatelessWidget {
                               : FontWeight.normal,
                           color: isTodayDate
                               ? theme.colorScheme.primary
-                              : (weekendDays.contains(date.weekday)
+                              : (weekendDays.contains(date.weekday % 7)
                                     ? (weekendColor ??
                                           theme.colorScheme.primary)
                                     : (theme.brightness == Brightness.dark
@@ -289,7 +355,7 @@ class WeekPageContent extends StatelessWidget {
                                   color: borderColor,
                                   width: 0.5,
                                 ),
-                                right: weekendDays.contains(date.weekday)
+                                right: weekendDays.contains(date.weekday % 7)
                                     ? BorderSide(color: borderColor, width: 0.5)
                                     : BorderSide.none,
                               ),
