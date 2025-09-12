@@ -54,7 +54,7 @@ class GeminiService {
     String promptContent =
         "Please provide a concise summary for the following events scheduled on ${DateFormat.yMMMd().format(dateForEvents)}:\n\n" +
         eventDetails +
-        "Highlight the busiest parts of the day or any notable sequences of events. Focus on a human-readable narrative.";
+        "Highlight the busiest parts of the day or any notable sequences of events. Focus on a human-readable narrative take in account the holidays on that day if location provided in events details is a link just mention that link if not search for the location keywords in google maps and then provided a link for the search   . ";
 
     print("Formatted Prompt for Summary:\n$promptContent");
 

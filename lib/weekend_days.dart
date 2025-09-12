@@ -199,7 +199,7 @@ final WEEKEND_DATA = {
 String? getCountryCodeForCurrentLocation() {
   final location = tz.getLocation(tz.local.name);
   final String timeZoneName = location.name.toLowerCase();
-  print("++===================${timeZoneName}");
+  // print("++===================${timeZoneName}");
 
   // Simple mapping from timezone name to country code (expand as needed)
   // Example: "Europe/London" -> "gb"

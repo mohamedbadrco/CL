@@ -116,7 +116,7 @@ class WeekPageContent extends StatelessWidget {
               padding: const EdgeInsets.all(4.0),
               margin: const EdgeInsets.only(bottom: 1.0),
               decoration: BoxDecoration(
-                color: theme.colorScheme.onPrimary,
+                color: theme.colorScheme.onPrimary.withOpacity(0.6),
                 borderRadius: BorderRadius.circular(4.0),
               ),
               child: Text(

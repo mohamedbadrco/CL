@@ -156,7 +156,7 @@ class DayScheduleView extends StatelessWidget {
               padding: const EdgeInsets.all(6),
               margin: const EdgeInsets.only(bottom: 2),
               decoration: BoxDecoration(
-                color: eventBgColor,
+                color: eventBgColor.withOpacity(0.6),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
@@ -294,7 +294,7 @@ class _CalendarAppState extends State<CalendarApp> {
       onSurface: const Color(0xFF1c1c1e),
       background: const Color(0xFFebebf0),
       surface: const Color(0xFFebebf0),
-      onPrimary: const Color(0xFF30D158),
+      onPrimary: const Color.fromRGBO(0, 137, 50, 1),
       primary: const Color(0xFF1c1c1e),
       secondary: const Color.fromRGBO(0, 137, 50, 1),
       onSecondary: const Color(0xFFebebf0),
@@ -892,12 +892,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final intlDateSymbols = DateFormat.EEEE().dateSymbols;
     final weekDayNames = intlDateSymbols.STANDALONENARROWWEEKDAYS;
 
-    final String appBarTitleText;
     final DateTime referenceDateForTitle = _isWeekView
         ? (_focusedWeekStart ?? _today)
         : (_focusedMonth ?? _today);
 
-    appBarTitleText = DateFormat("MMM yy").format(referenceDateForTitle);
+    final String monthText = DateFormat("MMMM").format(referenceDateForTitle).toUpperCase();
+    final String yearText = DateFormat("yy").format(referenceDateForTitle);
+    final String appBarTitleText = "$monthText $yearText";
 
     return Scaffold(
       appBar: AppBar(
@@ -941,7 +942,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
           ),
         ),
-        title: Text(appBarTitleText),
+        title: Text(
+          appBarTitleText,
+          style: theme.appBarTheme.titleTextStyle?.copyWith(
+            color: theme.colorScheme.onPrimary,
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
