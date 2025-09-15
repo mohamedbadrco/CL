@@ -127,8 +127,7 @@ class DayScheduleView extends StatelessWidget {
     List<Widget> eventWidgets = [];
     final theme = Theme.of(context);
     final eventBgColor = theme.colorScheme.onPrimary;
-    final eventTextColor =
-        theme.colorScheme.primary; 
+    final eventTextColor = theme.colorScheme.primary;
 
     for (var event in dayEvents) {
       final double topOffset = _calculateTopOffset(event.startTimeAsTimeOfDay);
@@ -206,7 +205,8 @@ class DayScheduleView extends StatelessWidget {
     }
 
     final double topOffset = _calculateTopOffset(currentTime);
-    final double totalScheduleHeight = (TamaxTime.hour - TaminTime.hour + 1) * hourHeight;
+    final double totalScheduleHeight =
+        (TamaxTime.hour - TaminTime.hour + 1) * hourHeight;
     const double indicatorHeight = 14.0; // Height for the text and line
 
     if (topOffset < 0 || topOffset > totalScheduleHeight) {
@@ -214,27 +214,31 @@ class DayScheduleView extends StatelessWidget {
     }
 
     return Positioned(
-      top: topOffset - (indicatorHeight / 2), // Center the indicator (line + text)
-      left: 50, 
+      top:
+          topOffset -
+          (indicatorHeight / 2), // Center the indicator (line + text)
+      left: 50,
       right: 0,
       height: indicatorHeight,
       child: Stack(
-        clipBehavior: Clip.none, 
+        clipBehavior: Clip.none,
         children: [
           Positioned(
-            top: indicatorHeight / 2 - 0.5, // Center line within the indicator height
+            top:
+                indicatorHeight / 2 -
+                0.5, // Center line within the indicator height
             left: 0,
             right: 0,
-            child: Container(
-              height: 1.0, 
-              color: Colors.red,
-            ),
+            child: Container(height: 1.0, color: Colors.red),
           ),
           Positioned(
             top: 0,
             right: 5, // Padding from the right edge of the schedule area
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 4.0,
+                vertical: 1.0,
+              ),
               decoration: BoxDecoration(
                 color: theme.canvasColor.withOpacity(0.75),
                 borderRadius: BorderRadius.circular(2.0),
@@ -596,12 +600,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Future<void> _loadWeekendDays() async {
     // Ensure timezone data is initialized before calling this
     // You should call tzdata.initializeTimeZones() in your main() if not already
-    final weekends = getWeekendDaysForCurrentLocation();
+    final weekends = await getWeekendDaysForCurrentLocation();
     // Use the [0, 6] format (Sun=0, Sat=6) directly,
     // or default to it if `weekends` is null.
     print("+++++++++++++++++++++${weekends}");
     setState(() {
-      _weekendDays = weekends ?? [0, 6];
+      _weekendDays = (weekends is List<int>) ? weekends as List<int> : [4, 6];
     });
   }
 
@@ -967,7 +971,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
         ? (_focusedWeekStart ?? _today)
         : (_focusedMonth ?? _today);
 
-    final String monthText = DateFormat("MMMM").format(referenceDateForTitle).toUpperCase();
+    final String monthText = DateFormat(
+      "MMMM",
+    ).format(referenceDateForTitle).toUpperCase();
     final String yearText = DateFormat("yy").format(referenceDateForTitle);
     final String appBarTitleText = "$monthText $yearText";
 
@@ -1020,11 +1026,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _resetDatabase,
-            tooltip: 'Reset Database & Refresh Events',
-          ),
+          // IconButton(
+          //   icon: const Icon(Icons.refresh),
+          //   onPressed: _resetDatabase,
+          //   tooltip: 'Reset Database & Refresh Events',
+          // ),
           IconButton(
             icon: Icon(
               widget.themeMode == ThemeMode.light

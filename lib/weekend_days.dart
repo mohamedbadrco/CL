@@ -1,5 +1,11 @@
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tzdata;
+import 'dart:convert'; // For jsonEncode, jsonDecode
+import 'dart:async'; // For Future.delayed
+
+import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart'; // For DateFormat
+import '../database_helper.dart'; // For Event class (if needed in other methods)
 
 final WEEKEND_DATA = {
   'Saturday & Sunday': {
@@ -232,19 +238,39 @@ List<int>? getWeekendDaysForCountry(String countryCode) {
 
 /// Returns the weekend days for the current location based on timezone.
 /// Returns null if the country code or weekend days cannot be determined.
-List<int>? getWeekendDaysForCurrentLocation() {
-  String? code = getCountryCodeForCurrentLocation();
+Future<List<int>?> getWeekendDaysForCurrentLocation() async {
+  String? code = null;
+
+  final locationurl = Uri.parse("http://ip-api.com/json/");
+  final locationheaders = {'Content-Type': 'application/json'};
+  final location_response = await http
+      .post(locationurl, headers: locationheaders, body: "{}")
+      .timeout(const Duration(seconds: 20)); // Increased timeout slightly
+  if (location_response.statusCode == 200) {
+    final location_responseData = jsonDecode(location_response.body);
+    code = location_responseData['countryCode'].toString().toLowerCase();
+  } else {
+    print(
+      "location Service: Summary API call failed. Status: ${location_response.statusCode}, Body: ${location_response.body}",
+    );
+    code = null;
+  }
+
   if (code == null) {
     // If the specific timezone couldn't be mapped to a country code,
     // let's default to 'om' (Oman) as it's configured for Fri/Sat weekends.
     // You can change 'om' to another relevant country code from your WEEKEND_DATA
     // if a different default is more appropriate for your primary use case.
-    print("Warning: Could not determine country code from local timezone. Defaulting to 'om' to get Friday/Saturday weekends.");
+    print(
+      "Warning: Could not determine country code from local timezone. Defaulting to 'om' to get Friday/Saturday weekends.",
+    );
     code = 'om';
   }
   // The print statement you added was helpful, let's refine it slightly for clarity
   print("Using country code '$code' to determine weekend days.");
-  final weekendDaysList = getWeekendDaysForCountry(code!); // code is now guaranteed non-null
+  final weekendDaysList = getWeekendDaysForCountry(
+    code!,
+  ); // code is now guaranteed non-null
   print("Determined weekend days: $weekendDaysList for country code '$code'.");
   return weekendDaysList;
 }

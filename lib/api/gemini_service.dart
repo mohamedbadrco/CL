@@ -31,14 +31,39 @@ class GeminiService {
       return errorMessage;
     }
     print("GeminiService: API Key loaded.");
-    print("Requesting summary for: ${DateFormat.yMMMd().format(dateForEvents)}");
+    print(
+      "Requesting summary for: ${DateFormat.yMMMd().format(dateForEvents)}",
+    );
 
     if (dailyEvents.isEmpty) {
       return Future.delayed(
         const Duration(milliseconds: 100),
-        () => "No events scheduled for this day, so no summary can be generated.",
+        () =>
+            "No events scheduled for this day, so no summary can be generated.",
       );
     }
+    // var location = "";
+    // final locationurl = Uri.parse("http://ip-api.com/json/");
+    // final locationheaders = {'Content-Type': 'application/json'};
+    // final location_response = await http
+    //     .post(locationurl, headers: locationheaders, body: "{}")
+    //     .timeout(const Duration(seconds: 20)); // Increased timeout slightly
+    // if (location_response.statusCode == 200) {
+    //   final location_responseData = jsonDecode(location_response.body);
+    //   location =
+    //       location_responseData['city'] +
+    //       ", " +
+    //       location_responseData['regionName'] +
+    //       ", " +
+    //       location_responseData['country'];
+    //   print("LOcation ____________ $location");
+    // } else {
+    //   print(
+    //     "location Service: Summary API call failed. Status: ${location_response.statusCode}, Body: ${location_response.body}",
+    //   );
+    //   return "Error: Failed to get summary from AI (Status: ${location_response.statusCode}).";
+    // }
+    // final body = jsonEncode({});
 
     String eventDetails = "";
     for (var event in dailyEvents) {
@@ -52,9 +77,9 @@ class GeminiService {
     }
 
     String promptContent =
-        "Please provide a concise summary for the following events scheduled on ${DateFormat.yMMMd().format(dateForEvents)}:\n\n" +
+        "You are an advanced event summarizer with a deep understanding of scheduling and time management. Your expertise lies in effectively condensing complex event information into clear, concise summaries that highlight key details and relationships between events, including time differences .Your task is to summarize a multi-event or single-event schedule. Here are the details you need to consider: ${DateFormat.yMMMd().format(dateForEvents)}:\n\n" +
         eventDetails +
-        "Highlight the busiest parts of the day or any notable sequences of events. Focus on a human-readable narrative take in account the holidays on that day if location provided in events details is a link just mention that link if not search for the location keywords in google maps and then provided a link for the search   . ";
+        " Please find the busiest time of the day, highlight events that are close to each other, and determine the time difference between them. Additionally, identify and highlight any holidays that fall on the specified day based on the provided location information. Consider sleeping times if any events occur early or late.  ";
 
     print("Formatted Prompt for Summary:\n$promptContent");
 
@@ -85,7 +110,9 @@ class GeminiService {
         print("GeminiService: Summary API call successful.");
         return summary;
       } else {
-        print("GeminiService: Summary API call failed. Status: ${response.statusCode}, Body: ${response.body}");
+        print(
+          "GeminiService: Summary API call failed. Status: ${response.statusCode}, Body: ${response.body}",
+        );
         return "Error: Failed to get summary from AI (Status: ${response.statusCode}).";
       }
     } catch (e) {
@@ -110,7 +137,7 @@ class GeminiService {
       return null;
     }
 
-    String promptContent = 
+    String promptContent =
         'Please provide a direct Google Maps URL for the following location: "$placeName". '
         'The URL should be suitable for opening directly in a web browser or Google Maps application. '
         'If you can find a specific Google Maps URL, return *only* the URL itself and nothing else. '
@@ -125,13 +152,17 @@ class GeminiService {
     final body = jsonEncode({
       "contents": [
         {
-          "parts": [{"text": promptContent}],
+          "parts": [
+            {"text": promptContent},
+          ],
         },
       ],
-      "generationConfig": { // Optional: control output randomness
-        "temperature": 0.2, // Lower temperature for more deterministic/factual output
+      "generationConfig": {
+        // Optional: control output randomness
+        "temperature":
+            0.2, // Lower temperature for more deterministic/factual output
         "topK": 1,
-      }
+      },
     });
 
     try {
@@ -143,32 +174,41 @@ class GeminiService {
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
         String? potentialUrl =
-            responseData['candidates'][0]['content']['parts'][0]['text']?.trim();
-        
-        print("GeminiService: Maps URL API call successful. Raw response text: '$potentialUrl'");
+            responseData['candidates'][0]['content']['parts'][0]['text']
+                ?.trim();
+
+        print(
+          "GeminiService: Maps URL API call successful. Raw response text: '$potentialUrl'",
+        );
 
         if (potentialUrl == "NOT_FOUND") {
           print("GeminiService: API indicated NOT_FOUND for the place name.");
           return null;
         }
-        
+
         if (_isValidUrl(potentialUrl)) {
-           // Further check if it looks like a maps URL (optional but good)
-          if (potentialUrl!.toLowerCase().contains("maps.google.com") || 
+          // Further check if it looks like a maps URL (optional but good)
+          if (potentialUrl!.toLowerCase().contains("maps.google.com") ||
               potentialUrl.toLowerCase().contains("goo.gl/maps") ||
               potentialUrl.toLowerCase().contains("google.com/maps")) {
             print("GeminiService: Valid Google Maps URL found: $potentialUrl");
             return potentialUrl;
           } else {
-            print("GeminiService: URL found but does not appear to be a Google Maps URL: $potentialUrl. Treating as not found.");
+            print(
+              "GeminiService: URL found but does not appear to be a Google Maps URL: $potentialUrl. Treating as not found.",
+            );
             return null; // Or handle as a generic URL if that's acceptable
           }
         } else {
-          print("GeminiService: Response was not 'NOT_FOUND' but is not a valid URL: '$potentialUrl'");
+          print(
+            "GeminiService: Response was not 'NOT_FOUND' but is not a valid URL: '$potentialUrl'",
+          );
           return null;
         }
       } else {
-        print("GeminiService: Maps URL API call failed. Status: ${response.statusCode}, Body: ${response.body}");
+        print(
+          "GeminiService: Maps URL API call failed. Status: ${response.statusCode}, Body: ${response.body}",
+        );
         return null;
       }
     } catch (e) {
@@ -184,7 +224,9 @@ class GeminiService {
     DateTime eventDate,
     Event event,
   ) async {
-    print("--- Gemini Service: sendSpecificEventDetailsToGemini --- (Simulated)");
+    print(
+      "--- Gemini Service: sendSpecificEventDetailsToGemini --- (Simulated)",
+    );
     String promptContent =
         "Details for a specific event on ${DateFormat.yMMMd().format(eventDate)}:\n";
     final startTimeStr = DateFormat.jm().format(event.startTimeAsDateTime);

@@ -14,7 +14,7 @@
         android:foregroundServiceType="<foreground service types>"> -->
 
     <application
-        android:label="mp1"
+        android:label="OBCalendar"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
