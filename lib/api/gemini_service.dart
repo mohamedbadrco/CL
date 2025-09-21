@@ -77,9 +77,9 @@ class GeminiService {
     }
 
     String promptContent =
-        "You are an advanced event summarizer with a deep understanding of scheduling and time management. Your expertise lies in effectively condensing complex event information into clear, concise summaries that highlight key details and relationships between events, including time differences .Your task is to summarize a multi-event or single-event schedule. Here are the details you need to consider: ${DateFormat.yMMMd().format(dateForEvents)}:\n\n" +
+        "You are an advanced event summarizer with a deep understanding of scheduling and time management. Your expertise lies in effectively condensing complex event information into clear, concise summaries that highlight key details and relationships between events, including time differences. Your task is to summarize a multi-event or single-event schedule. Here are the details you need to consider: ${DateFormat.yMMMd().format(dateForEvents)}:\n\n" +
         eventDetails +
-        " Please find the busiest time of the day, highlight events that are close to each other, and determine the time difference between them. Additionally, identify  Consider sleeping times if any events occur early or late.  ";
+        "Keep in mind to highlight the busiest time of the day, cluster events that are close to each other, calculate the time differences between these events, and note any implications if events occur during sleeping times. ";
 
     print("Formatted Prompt for Summary:\n$promptContent");
 
