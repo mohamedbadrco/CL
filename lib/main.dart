@@ -959,6 +959,57 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
+  Future<void> _selectMonthYear() async {
+    if (!mounted) return;
+
+    final DateTime initialPickerDate = _isWeekView
+        ? (_focusedWeekStart ?? _today)
+        : (_focusedMonth ?? _today);
+
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initialPickerDate,
+      firstDate: DateTime(1900), // Adjust as needed
+      lastDate: DateTime(2100),  // Adjust as needed
+      initialDatePickerMode: DatePickerMode.year,
+      helpText: 'SELECT MONTH & YEAR',
+    );
+
+    if (pickedDate != null && mounted) {
+      setState(() {
+        _focusedMonth = DateTime(pickedDate.year, pickedDate.month, 1);
+        _isWeekView = false; // Ensure we are in month view
+
+        // Update _selectedDate, try to preserve day, or pick a valid day
+        int dayToSelect = _selectedDate?.day ?? _today.day;
+        final int daysInNewMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0).day;
+        if (dayToSelect > daysInNewMonth) {
+          dayToSelect = daysInNewMonth;
+        }
+        _selectedDate = DateTime(_focusedMonth.year, _focusedMonth.month, dayToSelect);
+
+        // Re-initialize and jump the _monthPageController, similar to _toggleView
+        final int targetMonthPage = _calculateMonthPageIndex(_focusedMonth);
+        
+        if (_monthPageController.hasClients) _monthPageController.dispose(); // Important: Dispose before re-creating
+        _monthPageController = PageController(initialPage: targetMonthPage);
+
+        // It's good practice to ensure the controller is rebuilt and page jump happens after build
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted &&
+              _monthPageController.hasClients &&
+              _monthPageController.page?.round() != targetMonthPage) {
+            _monthPageController.jumpToPage(targetMonthPage);
+          }
+        });
+
+        if (_selectedDate != null) {
+          _fetchAiDaySummary(_selectedDate!);
+        }
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -1019,10 +1070,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
           ),
         ),
-        title: Text(
-          appBarTitleText,
-          style: theme.appBarTheme.titleTextStyle?.copyWith(
-            color: theme.colorScheme.onPrimary,
+        title: InkWell(
+          onTap: _selectMonthYear, // Call the new method
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 4.0), // For better tap area
+            child: Text(
+              appBarTitleText,
+              style: theme.appBarTheme.titleTextStyle?.copyWith(
+                color: theme.colorScheme.onPrimary,
+              ),
+            ),
           ),
         ),
         actions: [
